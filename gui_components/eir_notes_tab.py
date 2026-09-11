@@ -79,6 +79,20 @@ class EIRNotesTab(Gtk.Box):
             self.chk_anki.set_active(True)
         pipe_display.pack_start(self.chk_anki, False, False, 5)
 
+        # Whisper Remote vs Local Checkbox
+        self.chk_remote_whisper = Gtk.CheckButton(label="Usar Whisper Remoto (Leria API)")
+        self.chk_remote_whisper.set_tooltip_text(
+            "Activo (por defecto): Transcribe con https://leria.gal/api/v1/audio/transcriptions.\n"
+            "Desmarcado: Transcribe con Whisper local en CPU (faster-whisper int8)."
+        )
+        try:
+            import pipeline_config
+            self.chk_remote_whisper.set_active(getattr(pipeline_config, "USE_REMOTE_WHISPER", True))
+        except Exception:
+            self.chk_remote_whisper.set_active(True)
+        self.chk_remote_whisper.connect("toggled", self.on_whisper_mode_toggled)
+        pipe_display.pack_start(self.chk_remote_whisper, False, False, 2)
+
         self.pipeline_status_label = Gtk.Label(label="Selecciona los archivos y presiona Generar")
         self.pipeline_status_label.set_line_wrap(True)
         self.pipeline_status_label.set_justify(Gtk.Justification.CENTER)
@@ -96,6 +110,17 @@ class EIRNotesTab(Gtk.Box):
         self.btn_generate.get_style_context().add_class("suggested-action")
         self.btn_generate.connect("clicked", self.on_generate_clicked)
         self.pack_start(self.btn_generate, False, False, 0)
+
+    def set_remote_whisper(self, is_remote: bool):
+        if hasattr(self, "chk_remote_whisper"):
+            self.chk_remote_whisper.handler_block_by_func(self.on_whisper_mode_toggled)
+            self.chk_remote_whisper.set_active(is_remote)
+            self.chk_remote_whisper.handler_unblock_by_func(self.on_whisper_mode_toggled)
+
+    def on_whisper_mode_toggled(self, widget):
+        is_remote = widget.get_active()
+        if hasattr(self.parent_window, "set_use_remote_whisper"):
+            self.parent_window.set_use_remote_whisper(is_remote, source=self)
 
     def on_video_file_set(self, widget):
         video_path = widget.get_filename()
@@ -120,10 +145,12 @@ class EIRNotesTab(Gtk.Box):
             return
 
         anki_enabled = self.chk_anki.get_active()
+        remote_whisper = self.chk_remote_whisper.get_active()
         self.btn_generate.set_sensitive(False)
         self.video_chooser.set_sensitive(False)
         self.audio_chooser.set_sensitive(False)
         self.chk_anki.set_sensitive(False)
+        self.chk_remote_whisper.set_sensitive(False)
         if hasattr(self.parent_window, "notebook"):
             self.parent_window.notebook.set_show_tabs(False)
 
@@ -134,17 +161,17 @@ class EIRNotesTab(Gtk.Box):
 
         threading.Thread(
             target=self._pipeline_worker,
-            args=(video, audio, anki_enabled),
+            args=(video, audio, anki_enabled, remote_whisper),
             daemon=True
         ).start()
 
-    def _pipeline_worker(self, video_path: str, audio_path: str, anki_enabled: bool):
+    def _pipeline_worker(self, video_path: str, audio_path: str, anki_enabled: bool, remote_whisper: bool):
         def progress_cb(message, progress):
             GLib.idle_add(self._update_pipeline_ui, message, progress)
 
         try:
             from pipeline.generate_notes import NotesGenerator
-            generator = NotesGenerator(video_path, audio_path, generate_anki=anki_enabled)
+            generator = NotesGenerator(video_path, audio_path, generate_anki=anki_enabled, use_remote_whisper=remote_whisper)
             _, anki_path = generator.run(status_callback=progress_cb)
             status_msg = "¡Apuntes y Anki generados con éxito!" if anki_path else "¡Apuntes generados con éxito! (Sin Anki)"
             GLib.idle_add(self._on_pipeline_complete, True, status_msg)
@@ -168,6 +195,7 @@ class EIRNotesTab(Gtk.Box):
         self.video_chooser.set_sensitive(True)
         self.audio_chooser.set_sensitive(True)
         self.chk_anki.set_sensitive(True)
+        self.chk_remote_whisper.set_sensitive(True)
 
         self.pipeline_status_label.set_text(status_text)
         self.video_chooser.unselect_all()

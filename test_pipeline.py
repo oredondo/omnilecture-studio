@@ -58,7 +58,9 @@ class TestAudioTranscriber:
     @patch('pipeline.transcription.os.remove')
     @patch('os.makedirs')
     @patch('builtins.open')
-    def test_transcribe_success(self, mock_open, mock_makedirs, mock_remove, mock_glob, mock_run, mock_whisper, mock_exists, mock_getsize):
+    def test_transcribe_local_success(
+        self, mock_open, mock_makedirs, mock_remove, mock_glob, mock_run, mock_whisper, mock_exists, mock_getsize
+    ):
         # Mock WhisperModel behavior
         mock_model_instance = MagicMock()
         mock_whisper.return_value = mock_model_instance
@@ -73,11 +75,40 @@ class TestAudioTranscriber:
         
         mock_model_instance.transcribe.return_value = ([mock_segment1], MagicMock(language="es", language_probability=0.99))
         
-        transcriber = AudioTranscriber("dummy.mp3", DUMMY_TEMP_DIR)
+        transcriber = AudioTranscriber("dummy.mp3", DUMMY_TEMP_DIR, use_remote=False)
         output_file = transcriber.transcribe()
         
         assert output_file == os.path.join(DUMMY_TEMP_DIR, "transcription_temp.txt")
         mock_model_instance.transcribe.assert_called_once()
+        mock_run.assert_called()
+        mock_glob.assert_called_once()
+        mock_remove.assert_called()
+
+    @patch('os.path.getsize', return_value=1000)
+    @patch('os.path.exists', return_value=True)
+    @patch('pipeline.transcription.requests.post')
+    @patch('pipeline.transcription.subprocess.run')
+    @patch('pipeline.transcription.glob.glob')
+    @patch('pipeline.transcription.os.remove')
+    @patch('os.makedirs')
+    @patch('builtins.open')
+    def test_transcribe_remote_success(
+        self, mock_open, mock_makedirs, mock_remove, mock_glob, mock_run, mock_requests_post, mock_exists, mock_getsize
+    ):
+        # Mock remote request response
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"text": "Transcripcion de prueba remota"}
+        mock_requests_post.return_value = mock_resp
+
+        # Mock glob to return a dummy chunk file
+        mock_glob.return_value = [os.path.join(DUMMY_TEMP_DIR, "audio_chunk_000.mp3")]
+
+        transcriber = AudioTranscriber("dummy.mp3", DUMMY_TEMP_DIR, use_remote=True, api_key="test_key")
+        output_file = transcriber.transcribe()
+
+        assert output_file == os.path.join(DUMMY_TEMP_DIR, "transcription_temp.txt")
+        mock_requests_post.assert_called_once()
         mock_run.assert_called()
         mock_glob.assert_called_once()
         mock_remove.assert_called()

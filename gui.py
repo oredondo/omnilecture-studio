@@ -74,6 +74,18 @@ class ZoomRecorderGUI(Gtk.Window):
         hb.props.subtitle = "EIR Apuntes y Memorización"
         self.set_titlebar(hb)
 
+        # Whisper Endpoint / Local Toggle Button in HeaderBar
+        self.btn_whisper_toggle = Gtk.ToggleButton()
+        try:
+            import pipeline_config
+            initial_remote = getattr(pipeline_config, "USE_REMOTE_WHISPER", True)
+        except Exception:
+            initial_remote = True
+        self.btn_whisper_toggle.set_active(initial_remote)
+        self._update_whisper_toggle_label(initial_remote)
+        self.btn_whisper_toggle.connect("toggled", self.on_whisper_toggle_changed)
+        hb.pack_end(self.btn_whisper_toggle)
+
         # Notebook for Modular Tabs
         self.notebook = Gtk.Notebook()
         self.add(self.notebook)
@@ -93,6 +105,46 @@ class ZoomRecorderGUI(Gtk.Window):
         # Tab 4: Dictado por Voz
         self.dictation_tab = DictationTab(parent_window=self)
         self.notebook.append_page(self.dictation_tab, Gtk.Label(label="Dictado"))
+
+    def _update_whisper_toggle_label(self, is_remote: bool):
+        if is_remote:
+            self.btn_whisper_toggle.set_label("🌐 Whisper Remoto")
+            self.btn_whisper_toggle.set_tooltip_text(
+                "Whisper Remoto activo (https://leria.gal/api/v1/audio/transcriptions).\n"
+                "Haz clic para cambiar a Whisper Local (offline CPU)."
+            )
+            self.btn_whisper_toggle.get_style_context().add_class("suggested-action")
+        else:
+            self.btn_whisper_toggle.set_label("💻 Whisper Local")
+            self.btn_whisper_toggle.set_tooltip_text(
+                "Whisper Local activo: faster-whisper (CPU int8).\n"
+                "Haz clic para cambiar a Whisper Remoto (Leria API)."
+            )
+            self.btn_whisper_toggle.get_style_context().remove_class("suggested-action")
+
+    def on_whisper_toggle_changed(self, widget):
+        is_remote = widget.get_active()
+        self.set_use_remote_whisper(is_remote, source=self.btn_whisper_toggle)
+
+    def set_use_remote_whisper(self, is_remote: bool, source=None):
+        try:
+            import pipeline_config
+            pipeline_config.USE_REMOTE_WHISPER = is_remote
+        except Exception:
+            pass
+
+        if source != getattr(self, "btn_whisper_toggle", None) and hasattr(self, "btn_whisper_toggle"):
+            self.btn_whisper_toggle.handler_block_by_func(self.on_whisper_toggle_changed)
+            self.btn_whisper_toggle.set_active(is_remote)
+            self._update_whisper_toggle_label(is_remote)
+            self.btn_whisper_toggle.handler_unblock_by_func(self.on_whisper_toggle_changed)
+        elif hasattr(self, "btn_whisper_toggle"):
+            self._update_whisper_toggle_label(is_remote)
+
+        if hasattr(self, "eir_tab") and hasattr(self.eir_tab, "set_remote_whisper"):
+            self.eir_tab.set_remote_whisper(is_remote)
+        if hasattr(self, "dictation_tab") and hasattr(self.dictation_tab, "set_remote_whisper"):
+            self.dictation_tab.set_remote_whisper(is_remote)
 
     def on_delete_event(self, widget, event):
         if self.recorder_tab.is_recording:

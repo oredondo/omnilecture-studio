@@ -139,9 +139,12 @@ graph TD
 * **Zero-Invention Policy**: System prompt strictly forbids inventing, inferring, or adding facts, definitions, or dates not explicitly present in the note photographs.
 * **Faithful Graphic Translation**: Converts handwritten diagrams into Mermaid blocks, handwritten tables into Markdown Tables, and mathematical formulas into LaTeX (`$...$`).
 
-### 6. Audio Transcription & Memory Safety
-* **Engine**: `faster-whisper` with `int8` CPU quantization and VAD silence filtering.
-* **Anti-OOM Chunking**: Automatically splits long audio into 30-minute files before Whisper processing to ensure RAM consumption remains under 1 GB.
+### 6. Audio Transcription (Remote Whisper API & Local faster-whisper)
+* **Dual Engine**:
+  * **Remote API (Default)**: Sends transcription requests directly to `https://leria.gal/api/v1/audio/transcriptions` using the same Bearer credentials as the LLM (`pipeline_config.API_KEY`). Long recordings are split into 10-minute MP3 chunks to ensure low latency, zero payload limit issues, and stable timestamps.
+  * **Local Fallback**: Local `faster-whisper` execution on CPU with `int8` quantization and VAD silence filtering.
+* **Instant Toggle**: Toggle between Remote API and Local Whisper anytime via the HeaderBar button (`🌐 Whisper Remoto` / `💻 Whisper Local`) or via checkboxes in the "Apuntes EIR" and "Dictado" tabs.
+* **Anti-OOM Chunking**: Automatically splits long audio into manageable chunks before processing to ensure minimal RAM and network resource consumption.
 
 ---
 
@@ -308,7 +311,9 @@ MODEL_NAME = "leria:redacta"
 
 OCR_CROP_RIGHT = 0.25      # Crop right 25% of screen (ignores Zoom chat)
 OCR_CHUNK_MINUTES = 30     # Process long classes in 30-min windows
-WHISPER_MODEL = "base"     # Whisper model size ('tiny', 'base', 'small', 'medium')
+USE_REMOTE_WHISPER = True  # Use remote Whisper API endpoint by default (True/False)
+WHISPER_ENDPOINT = "https://leria.gal/api/v1/audio/transcriptions"
+WHISPER_MODEL = "base"     # Local Whisper model size ('tiny', 'base', 'small', 'medium')
 GENERATE_ANKI = True       # Enable Anki generation by default
 ```
 

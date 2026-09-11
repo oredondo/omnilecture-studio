@@ -31,7 +31,7 @@ logger = logging.getLogger("NotesGenerator")
 class NotesGenerator:
     """Orchestrates the entire video processing and EIR notes generation workflow with time-based chunking."""
     
-    def __init__(self, video_path: str, audio_path: str = None, generate_anki: bool = None):
+    def __init__(self, video_path: str, audio_path: str = None, generate_anki: bool = None, use_remote_whisper: bool = None):
         self.video_path = os.path.abspath(video_path)
         if not os.path.exists(self.video_path):
             raise FileNotFoundError(f"Video file not found: {self.video_path}")
@@ -53,6 +53,11 @@ class NotesGenerator:
         # Read default from pipeline_config
         generate_anki_default = getattr(pipeline_config, "GENERATE_ANKI", True)
         self.generate_anki = generate_anki if generate_anki is not None else generate_anki_default
+
+        if use_remote_whisper is None:
+            self.use_remote_whisper = getattr(pipeline_config, "USE_REMOTE_WHISPER", True)
+        else:
+            self.use_remote_whisper = use_remote_whisper
         
     def _parse_filename_metadata(self) -> Tuple[str, str]:
         """Cleans the recording name to extract a clean title and subject for the EIR study notes."""
@@ -131,9 +136,14 @@ class NotesGenerator:
         
         # Step 2: Run Audio Transcription
         if status_callback:
-            status_callback("Transcribiendo audio de la clase (Whisper)...", 0.20)
-        transcriber = AudioTranscriber(self.audio_path, self.temp_workspace)
-        trans_file = transcriber.transcribe()
+            mode_lbl = "remoto Leria" if self.use_remote_whisper else "local"
+            status_callback(f"Transcribiendo audio de la clase (Whisper {mode_lbl})...", 0.20)
+        transcriber = AudioTranscriber(
+            self.audio_path,
+            self.temp_workspace,
+            use_remote=self.use_remote_whisper
+        )
+        trans_file = transcriber.transcribe(status_callback=status_callback)
         
         # Read extracted texts
         with open(ocr_file, "r", encoding="utf-8") as f:
@@ -296,12 +306,32 @@ if __name__ == "__main__":
     parser.add_argument("--video", required=True, help="Path to the class video (.mp4)")
     parser.add_argument("--audio", help="Path to the class audio (.mp3). Defaults to same name as video.")
     parser.add_argument("--interval", type=int, default=15, help="OCR sampling interval in seconds.")
-    parser.add_argument("--no-anki", action="store_true", help="Skip generating Anki flashcards.")
+    parser.add_argument(
+        "--local-whisper",
+        action="store_true",
+        help="Usa Whisper local en CPU (faster-whisper) en vez del endpoint remoto"
+    )
+    parser.add_argument(
+        "--remote-whisper",
+        action="store_true",
+        help="Fuerza el uso de Whisper remoto (https://leria.gal/api/v1/audio/transcriptions)"
+    )
     
     args = parser.parse_args()
     
+    use_remote = None
+    if args.local_whisper:
+        use_remote = False
+    elif args.remote_whisper:
+        use_remote = True
+
     try:
-        generator = NotesGenerator(args.video, args.audio, generate_anki=not args.no_anki)
+        generator = NotesGenerator(
+            args.video,
+            args.audio,
+            generate_anki=not args.no_anki,
+            use_remote_whisper=use_remote
+        )
         notes_path, anki_path = generator.run(args.interval)
         print(f"\n[SUCCESS] EIR Notes generated at: {notes_path}")
         if anki_path:

@@ -1,5 +1,4 @@
 import os
-import time
 import logging
 import threading
 from datetime import datetime
@@ -85,7 +84,10 @@ class DictationTab(Gtk.Box):
         # File Selection Alternative
         file_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         lbl_audio = Gtk.Label(label="O Seleccionar Audio / Texto Bruto:")
-        self.audio_chooser = Gtk.FileChooserButton(title="Seleccionar Audio o Texto Dictado (.wav, .mp3, .txt)", action=Gtk.FileChooserAction.OPEN)
+        self.audio_chooser = Gtk.FileChooserButton(
+            title="Seleccionar Audio o Texto Dictado (.wav, .mp3, .txt)",
+            action=Gtk.FileChooserAction.OPEN
+        )
         filter_audio = Gtk.FileFilter()
         filter_audio.set_name("Archivos de Audio y Texto (.wav, .mp3, .txt...)")
         for ext in ["*.wav", "*.mp3", "*.flac", "*.ogg", "*.m4a", "*.txt"]:
@@ -94,6 +96,20 @@ class DictationTab(Gtk.Box):
         file_box.pack_start(lbl_audio, False, False, 0)
         file_box.pack_start(self.audio_chooser, True, True, 0)
         self.pack_start(file_box, False, False, 0)
+
+        # Whisper Remote vs Local Checkbox
+        self.chk_remote_whisper = Gtk.CheckButton(label="Usar Whisper Remoto (Leria API)")
+        self.chk_remote_whisper.set_tooltip_text(
+            "Activo (por defecto): Transcribe mediante https://leria.gal/api/v1/audio/transcriptions.\n"
+            "Desmarcado: Transcribe con Whisper local en CPU (faster-whisper int8)."
+        )
+        try:
+            import pipeline_config
+            self.chk_remote_whisper.set_active(getattr(pipeline_config, "USE_REMOTE_WHISPER", True))
+        except Exception:
+            self.chk_remote_whisper.set_active(True)
+        self.chk_remote_whisper.connect("toggled", self.on_whisper_mode_toggled)
+        self.pack_start(self.chk_remote_whisper, False, False, 0)
 
         # Status & Progress
         display_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
@@ -116,6 +132,17 @@ class DictationTab(Gtk.Box):
         self.btn_file_generate.connect("clicked", self.on_file_generate_clicked)
         self.pack_start(self.btn_file_generate, False, False, 0)
 
+    def set_remote_whisper(self, is_remote: bool):
+        if hasattr(self, "chk_remote_whisper"):
+            self.chk_remote_whisper.handler_block_by_func(self.on_whisper_mode_toggled)
+            self.chk_remote_whisper.set_active(is_remote)
+            self.chk_remote_whisper.handler_unblock_by_func(self.on_whisper_mode_toggled)
+
+    def on_whisper_mode_toggled(self, widget):
+        is_remote = widget.get_active()
+        if hasattr(self.parent_window, "set_use_remote_whisper"):
+            self.parent_window.set_use_remote_whisper(is_remote, source=self)
+
     def on_rec_clicked(self, widget):
         now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         raw_dir = os.path.join(config.OUTPUT_DIR, "apuntes_dictados", "bruto")
@@ -136,6 +163,7 @@ class DictationTab(Gtk.Box):
         self.btn_stop.set_sensitive(True)
         self.btn_file_generate.set_sensitive(False)
         self.audio_chooser.set_sensitive(False)
+        self.chk_remote_whisper.set_sensitive(False)
         self.status_label.set_text("Grabando dictado en alta fidelidad (guardando audio completo)...")
 
     def on_pause_clicked(self, widget):
@@ -170,13 +198,15 @@ class DictationTab(Gtk.Box):
         self.btn_stop.set_sensitive(False)
         self.btn_file_generate.set_sensitive(True)
         self.audio_chooser.set_sensitive(True)
+        self.chk_remote_whisper.set_sensitive(True)
         self.btn_pause.set_label("Pausar")
 
         if elapsed_sec < 2.0 or not os.path.exists(temp_audio_file) or os.path.getsize(temp_audio_file) < 1000:
             DialogUtils.show_error(
                 self.parent_window,
                 "Grabación muy corta",
-                "La grabación duró menos de 2 segundos o no contenía audio. Por favor, habla al menos 3-5 segundos para procesar el dictado."
+                "La grabación duró menos de 2 segundos o no contenía audio. "
+                "Por favor, habla al menos 3-5 segundos para procesar el dictado."
             )
             self.status_label.set_text("Grabación cancelada (duración < 2 segundos).")
             return
@@ -184,6 +214,7 @@ class DictationTab(Gtk.Box):
         self.btn_rec.set_sensitive(False)
         self.btn_file_generate.set_sensitive(False)
         self.audio_chooser.set_sensitive(False)
+        self.chk_remote_whisper.set_sensitive(False)
 
         self.is_running = True
         self.progress_bar.set_fraction(0.0)
@@ -202,7 +233,8 @@ class DictationTab(Gtk.Box):
 
         try:
             from pipeline.dictation_notes import VoiceDictationNotesGenerator
-            generator = VoiceDictationNotesGenerator()
+            use_remote = self.chk_remote_whisper.get_active()
+            generator = VoiceDictationNotesGenerator(use_remote_whisper=use_remote)
 
             md_path, raw_text_path, backup_mp3 = generator.run_from_file(input_file, status_callback=progress_cb)
 
@@ -229,6 +261,9 @@ class DictationTab(Gtk.Box):
             return
 
         self.btn_file_generate.set_sensitive(False)
+        self.btn_rec.set_sensitive(False)
+        self.audio_chooser.set_sensitive(False)
+        self.chk_remote_whisper.set_sensitive(False)
         self.is_running = True
         self.progress_bar.set_fraction(0.0)
         self.progress_bar.set_text("Procesando archivo de audio...")
@@ -267,6 +302,7 @@ class DictationTab(Gtk.Box):
         self.btn_stop.set_sensitive(False)
         self.btn_file_generate.set_sensitive(True)
         self.audio_chooser.set_sensitive(True)
+        self.chk_remote_whisper.set_sensitive(True)
 
         self.status_label.set_text(status_text)
         self.timer_label.set_text("00:00:00")
