@@ -78,11 +78,20 @@ class VoiceDictationNotesGenerator:
         mode_str = "remoto (Leria API)" if self.use_remote_whisper else "local (faster-whisper)"
         logger.info(f"Transcribing dictation audio file directly with Whisper {mode_str}: {audio_path}")
 
-        dictation_prompt = (
-            "Dictado estructurado para apuntes docentes y oposiciones EIR. "
-            "Comandos de puntuación y estructura: punto, coma, dos puntos, abro paréntesis, "
-            "cierro paréntesis, entre paréntesis, abro comillas, cierro comillas, subpunto, guión."
-        )
+        target = getattr(config, "STUDY_TARGET", "General")
+        lang = getattr(config, "STUDY_LANGUAGE", "English").lower()
+        if lang.startswith("span") or target.upper() == "EIR":
+            dictation_prompt = (
+                f"Dictado estructurado para apuntes docentes y {target}. "
+                "Comandos de puntuación y estructura: punto, coma, dos puntos, abro paréntesis, "
+                "cierro paréntesis, entre paréntesis, abro comillas, cierro comillas, subpunto, guión."
+            )
+        else:
+            dictation_prompt = (
+                f"Dictado estructurado / Structured dictation for study notes and {target}. "
+                "Punctuation and structure commands: period, comma, colon, open parenthesis, "
+                "close parenthesis, in parentheses, open quotes, close quotes, sub-item, dash, bullet."
+            )
         transcriber = AudioTranscriber(
             audio_path,
             tempfile.gettempdir(),
@@ -102,7 +111,7 @@ class VoiceDictationNotesGenerator:
                 pass
 
         if not raw_text:
-            raise ValueError("No se detectó voz inteligible en el audio. Asegúrate de hablar claro y cerca del micrófono.")
+            raise ValueError("No intelligible speech detected in audio. Please speak clearly and close to the microphone.")
 
         logger.info(f"Whisper {mode_str} transcription completed successfully.")
         return raw_text
@@ -113,7 +122,7 @@ class VoiceDictationNotesGenerator:
             raise ValueError("Dictation text is empty. Cannot generate notes.")
 
         if status_callback:
-            status_callback("Procesando dictado con IA (LangChain)...", 0.5)
+            status_callback("Processing dictation with AI...", 0.5)
 
         now = datetime.now()
         timestamp = now.strftime("%Y%m%d_%H%M")
@@ -143,7 +152,7 @@ class VoiceDictationNotesGenerator:
         DocxExporter.convert_file(raw_text_path)
 
         if status_callback:
-            status_callback("¡Apuntes de dictado generados con éxito en .md y .docx!", 1.0)
+            status_callback("Dictation notes generated successfully in .md and .docx!", 1.0)
 
         logger.info(f"Dictation study notes saved to: {md_path} and .docx equivalent")
         return md_path, raw_text_path
@@ -151,8 +160,8 @@ class VoiceDictationNotesGenerator:
     def run_from_audio(self, audio_path: str, status_callback=None) -> tuple[str, str, str]:
         """Full pipeline: transcribes uncompressed audio, generates AI study notes, and saves compressed MP3 backup."""
         if status_callback:
-            mode_desc = "Whisper remoto" if self.use_remote_whisper else "Whisper local"
-            status_callback(f"Transcribiendo dictado ({mode_desc})...", 0.2)
+            mode_desc = "remote Whisper" if self.use_remote_whisper else "local Whisper"
+            status_callback(f"Transcribing dictation ({mode_desc})...", 0.2)
 
         if status_callback:
             dictation_text = self.transcribe_audio_file(audio_path, status_callback=status_callback)
@@ -162,12 +171,12 @@ class VoiceDictationNotesGenerator:
         md_path, raw_text_path = self.generate_notes_from_text(dictation_text, status_callback=status_callback)
 
         if status_callback:
-            status_callback("Guardando copia de seguridad en MP3 comprimido (32k mono)...", 0.85)
+            status_callback("Saving compressed MP3 backup (32k mono)...", 0.85)
 
         backup_mp3_path = self.compress_to_ultra_light_mp3(audio_path)
 
         if status_callback:
-            status_callback("¡Dictado procesado y respaldado con éxito!", 1.0)
+            status_callback("Dictation processed and backed up successfully!", 1.0)
 
         return md_path, raw_text_path, backup_mp3_path
 
@@ -175,10 +184,48 @@ class VoiceDictationNotesGenerator:
         """Processes either an audio file or an existing raw text file (.txt)."""
         if file_path.lower().endswith(".txt"):
             if status_callback:
-                status_callback("Leyendo texto bruto de dictado...", 0.2)
+                status_callback("Reading raw dictation text...", 0.2)
             with open(file_path, "r", encoding="utf-8") as f:
                 dictation_text = f.read()
             md_path, raw_text_path = self.generate_notes_from_text(dictation_text, status_callback=status_callback)
             return md_path, raw_text_path, None
         else:
             return self.run_from_audio(file_path, status_callback=status_callback)
+
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(description="Transcribe voice dictation audio and generate structured study notes.")
+    parser.add_argument("--audio", help="Path to input audio file (.wav, .mp3, .m4a, .flac, .ogg).")
+    parser.add_argument("--file", help="Path to input audio file or raw transcription text file (.txt).")
+    parser.add_argument("--output-dir", help="Output directory for generated notes.")
+    parser.add_argument("--local-whisper", action="store_true", help="Force local faster-whisper instead of remote API.")
+
+    args = parser.parse_args()
+    target_file = args.audio or args.file
+
+    if not target_file:
+        print("[ERROR] Please provide an audio file via --audio <file> or --file <path>.")
+        sys.exit(1)
+
+    if not os.path.exists(target_file):
+        print(f"[ERROR] Target file not found: {target_file}")
+        sys.exit(1)
+
+    use_remote = not args.local_whisper
+    generator = VoiceDictationNotesGenerator(
+        output_dir=args.output_dir,
+        use_remote_whisper=use_remote
+    )
+
+    try:
+        md_path, raw_path, backup_path = generator.run_from_file(target_file)
+        print(f"\n[SUCCESS] Dictation notes generated at: {md_path}")
+        print(f"[SUCCESS] Raw text backup saved at: {raw_path}")
+        if backup_path:
+            print(f"[SUCCESS] Ultra-light MP3 backup saved at: {backup_path}\n")
+    except Exception as e:
+        logger.exception("Dictation Notes generation failed:")
+        sys.exit(1)

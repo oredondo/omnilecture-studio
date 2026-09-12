@@ -10,30 +10,30 @@ class DictationPreprocessor:
 
         cleaned = text
 
-        # 1. Spoken Punctuation: Dos puntos
-        cleaned = re.sub(r'(?i)\b(?:dos\s+puntos)\b', ':', cleaned)
+        # 1. Spoken Punctuation: Colon / Dos puntos
+        cleaned = re.sub(r'(?i)\b(?:dos\s+puntos|colon)\b', ':', cleaned)
 
-        # 2. Spoken Punctuation: Punto y coma
-        cleaned = re.sub(r'(?i)\b(?:punto\s+y\s+coma)\b', ';', cleaned)
+        # 2. Spoken Punctuation: Semicolon / Punto y coma
+        cleaned = re.sub(r'(?i)\b(?:punto\s+y\s+coma|semicolon)\b', ';', cleaned)
 
-        # 3. Spoken Punctuation: Punto y aparte / Nuevo párrafo
-        cleaned = re.sub(r'(?i)\b(?:punto\s+y\s+aparte|nuevo\s+p[aá]rrafo)\b', '\n\n', cleaned)
+        # 3. Spoken Punctuation: New paragraph / Punto y aparte / Nuevo párrafo
+        cleaned = re.sub(r'(?i)\b(?:punto\s+y\s+aparte|nuevo\s+p[aá]rrafo|new\s+paragraph)\b', '\n\n', cleaned)
 
-        # 4. Spoken Punctuation: Punto y seguido / Punto final
+        # 4. Spoken Punctuation: Period / Punto y seguido / Punto final
         cleaned = re.sub(r'(?i)\b(?:punto\s+y\s+seguido)\b', '. ', cleaned)
-        cleaned = re.sub(r'(?i)\b(?:punto\s+final)\b', '.', cleaned)
+        cleaned = re.sub(r'(?i)\b(?:punto\s+final|full\s+stop)\b', '.', cleaned)
 
-        # 5. Spoken Punctuation: Abro / Cierro paréntesis
+        # 5. Spoken Punctuation: Open / Close parentheses (Abro / Cierro paréntesis)
         cleaned = re.sub(
-            r'(?i)\b(?:abro|abrir)\s+par[eé]ntesis\s*(.*?)\s*(?:cierro|cerrar|cero)\s+par[eé]ntesis\b',
+            r'(?i)\b(?:abro|abrir|open)\s+(?:par[eé]ntesis|parenthesis|bracket)\s*(.*?)\s*(?:cierro|cerrar|cero|close)\s+(?:par[eé]ntesis|parenthesis|bracket)\b',
             r'(\1)',
             cleaned,
             flags=re.DOTALL
         )
 
-        # 6. Spoken Punctuation: Entre paréntesis
+        # 6. Spoken Punctuation: In parentheses / Entre paréntesis
         cleaned = re.sub(
-            r'(?i)\bentre\s+par[eé]ntesis\s+([^,.;\n]+?)(?=[,.;\n]|$)',
+            r'(?i)\b(?:entre\s+par[eé]ntesis|in\s+parentheses)\s+([^,.;\n]+?)(?=[,.;\n]|$)',
             r'(\1)',
             cleaned
         )
@@ -45,34 +45,34 @@ class DictationPreprocessor:
             cleaned
         )
 
-        # 8. Spoken Punctuation: Abro / Cierro comillas & Entre comillas
+        # 8. Spoken Punctuation: Quotes / Comillas
         cleaned = re.sub(
-            r'(?i)\b(?:abro|abrir)\s+comillas\s*(.*?)\s*(?:cierro|cerrar|cero)\s+comillas\b',
+            r'(?i)\b(?:abro|abrir|open)\s+(?:comillas|quotes?)\s*(.*?)\s*(?:cierro|cerrar|cero|close)\s+(?:comillas|quotes?)\b',
             r'"\1"',
             cleaned,
             flags=re.DOTALL
         )
         cleaned = re.sub(
-            r'(?i)\bentre\s+comillas\s+([^,.;\n]+?)(?=[,.;\n]|$)',
+            r'(?i)\b(?:entre\s+comillas|in\s+quotes?)\s+([^,.;\n]+?)(?=[,.;\n]|$)',
             r'"\1"',
             cleaned
         )
 
-        # 9. Spoken Structure: Subpunto / Viñeta / Guión
+        # 9. Spoken Structure: Sub-item / Bullet / Dash / Subpunto / Viñeta / Guión
         cleaned = re.sub(
-            r'(?i)(?:^|\n)\s*(?:subpunto|gui[oó]n|vi[ñn]eta)\s*:?\s*',
+            r'(?i)(?:^|\n)\s*(?:subpunto|gui[oó]n|vi[ñn]eta|sub-?item|bullet|dash)\s*:?\s*',
             r'\n- ',
             cleaned
         )
         cleaned = re.sub(
-            r'(?i)\b(?:subpunto|gui[oó]n|vi[ñn]eta)\s*:?\s*',
+            r'(?i)\b(?:subpunto|gui[oó]n|vi[ñn]eta|sub-?item|bullet|dash)\s*:?\s*',
             r'\n- ',
             cleaned
         )
 
-        # 10. Spoken Formatting: En negrita / Destacado
+        # 10. Spoken Formatting: In bold / En negrita / Destacado
         cleaned = re.sub(
-            r'(?i)\b(?:en\s+negrita|destacado)\s+([^,.;\n]+?)(?=[,.;\n]|$)',
+            r'(?i)\b(?:en\s+negrita|destacado|in\s+bold)\s+([^,.;\n]+?)(?=[,.;\n]|$)',
             r'**\1**',
             cleaned
         )
@@ -86,6 +86,8 @@ class DictationPreprocessor:
         cleaned = re.sub(r'\)(?=\w)', ') ', cleaned)
         cleaned = re.sub(r'(?<=\w)\s*"\s*(?=\w)', ' "', cleaned)
         cleaned = re.sub(r'(?<=\w)\s*"\s*(?=[,.;:\s]|$)', '"', cleaned)
+        cleaned = re.sub(r':\s*\n', ':\n', cleaned)
+        cleaned = re.sub(r'[ \t]+\n', '\n', cleaned)
         cleaned = re.sub(r'[ \t]+', ' ', cleaned)
         cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
 

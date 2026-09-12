@@ -14,7 +14,7 @@ import config
 from audio_recorder import AudioRecorder
 from gui_components.dialogs import DialogUtils
 
-logger = logging.getLogger("ZoomRecorderGUI.DictationTab")
+logger = logging.getLogger("OmniLectureGUI.DictationTab")
 
 
 class DictationTab(Gtk.Box):
@@ -39,12 +39,12 @@ class DictationTab(Gtk.Box):
 
     def _build_ui(self):
         title = Gtk.Label()
-        title.set_markup("<b>Dictado por Voz y Apuntes IA</b>")
+        title.set_markup("<b>Voice Dictation & AI Study Notes</b>")
         title.modify_font(Pango.FontDescription("bold 12"))
         self.pack_start(title, False, False, 0)
 
         # Microphone Recording Group
-        mic_frame = Gtk.Frame(label="Grabación Directa de Dictado")
+        mic_frame = Gtk.Frame(label="Live Dictation Recording")
         mic_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         mic_box.set_margin_start(12)
         mic_box.set_margin_end(12)
@@ -63,17 +63,17 @@ class DictationTab(Gtk.Box):
         btn_box.set_homogeneous(True)
         mic_box.pack_start(btn_box, False, False, 0)
 
-        self.btn_rec = Gtk.Button(label="Grabar")
+        self.btn_rec = Gtk.Button(label="Record")
         self.btn_rec.get_style_context().add_class("suggested-action")
         self.btn_rec.connect("clicked", self.on_rec_clicked)
         btn_box.pack_start(self.btn_rec, True, True, 0)
 
-        self.btn_pause = Gtk.Button(label="Pausar")
+        self.btn_pause = Gtk.Button(label="Pause")
         self.btn_pause.set_sensitive(False)
         self.btn_pause.connect("clicked", self.on_pause_clicked)
         btn_box.pack_start(self.btn_pause, True, True, 0)
 
-        self.btn_stop = Gtk.Button(label="Finalizar y Generar")
+        self.btn_stop = Gtk.Button(label="Finish & Generate")
         self.btn_stop.get_style_context().add_class("destructive-action")
         self.btn_stop.set_sensitive(False)
         self.btn_stop.connect("clicked", self.on_stop_clicked)
@@ -83,13 +83,13 @@ class DictationTab(Gtk.Box):
 
         # File Selection Alternative
         file_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        lbl_audio = Gtk.Label(label="O Seleccionar Audio / Texto Bruto:")
+        lbl_audio = Gtk.Label(label="Or Select Audio / Raw Text:")
         self.audio_chooser = Gtk.FileChooserButton(
-            title="Seleccionar Audio o Texto Dictado (.wav, .mp3, .txt)",
+            title="Select Dictation Audio or Text File (.wav, .mp3, .txt)",
             action=Gtk.FileChooserAction.OPEN
         )
         filter_audio = Gtk.FileFilter()
-        filter_audio.set_name("Archivos de Audio y Texto (.wav, .mp3, .txt...)")
+        filter_audio.set_name("Audio and Text Files (*.wav, *.mp3, *.txt...)")
         for ext in ["*.wav", "*.mp3", "*.flac", "*.ogg", "*.m4a", "*.txt"]:
             filter_audio.add_pattern(ext)
         self.audio_chooser.add_filter(filter_audio)
@@ -98,10 +98,10 @@ class DictationTab(Gtk.Box):
         self.pack_start(file_box, False, False, 0)
 
         # Whisper Remote vs Local Checkbox
-        self.chk_remote_whisper = Gtk.CheckButton(label="Usar Whisper Remoto (Leria API)")
+        self.chk_remote_whisper = Gtk.CheckButton(label="Use Remote Whisper (Leria API)")
         self.chk_remote_whisper.set_tooltip_text(
-            "Activo (por defecto): Transcribe mediante https://leria.gal/api/v1/audio/transcriptions.\n"
-            "Desmarcado: Transcribe con Whisper local en CPU (faster-whisper int8)."
+            "Checked (default): Transcribes using https://leria.gal/api/v1/audio/transcriptions.\n"
+            "Unchecked: Transcribes with local CPU Whisper (faster-whisper int8)."
         )
         try:
             import pipeline_config
@@ -115,7 +115,7 @@ class DictationTab(Gtk.Box):
         display_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self.pack_start(display_box, True, True, 0)
 
-        self.status_label = Gtk.Label(label="Graba tu dictado o selecciona un archivo para procesar")
+        self.status_label = Gtk.Label(label="Record your dictation or select a file to process")
         self.status_label.set_line_wrap(True)
         self.status_label.set_justify(Gtk.Justification.CENTER)
         self.status_label.modify_font(Pango.FontDescription("monospace bold 9"))
@@ -128,7 +128,7 @@ class DictationTab(Gtk.Box):
         self.progress_bar.hide()
         display_box.pack_start(self.progress_bar, False, False, 2)
 
-        self.btn_file_generate = Gtk.Button(label="Generar desde Archivo Seleccionado")
+        self.btn_file_generate = Gtk.Button(label="Generate from Selected File")
         self.btn_file_generate.connect("clicked", self.on_file_generate_clicked)
         self.pack_start(self.btn_file_generate, False, False, 0)
 
@@ -147,11 +147,11 @@ class DictationTab(Gtk.Box):
         now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         raw_dir = os.path.join(config.OUTPUT_DIR, "apuntes_dictados", "bruto")
         os.makedirs(raw_dir, exist_ok=True)
-        audio_temp_path = os.path.join(raw_dir, f"{now_str}_dictado_raw.wav")
+        audio_temp_path = os.path.join(raw_dir, f"{now_str}_dictation_raw.wav")
 
         self.audio_recorder = AudioRecorder(output_path=audio_temp_path, mic_only=True)
         if not self.audio_recorder.start():
-            DialogUtils.show_error(self.parent_window, "Error de Micrófono", "No se pudo iniciar la grabación del micrófono.")
+            DialogUtils.show_error(self.parent_window, "Microphone Error", "Could not start microphone recording.")
             return
 
         self.is_recording = True
@@ -164,7 +164,7 @@ class DictationTab(Gtk.Box):
         self.btn_file_generate.set_sensitive(False)
         self.audio_chooser.set_sensitive(False)
         self.chk_remote_whisper.set_sensitive(False)
-        self.status_label.set_text("Grabando dictado en alta fidelidad (guardando audio completo)...")
+        self.status_label.set_text("Recording dictation in high fidelity (saving complete audio)...")
 
     def on_pause_clicked(self, widget):
         if not self.audio_recorder:
@@ -172,12 +172,12 @@ class DictationTab(Gtk.Box):
 
         if self.audio_recorder.is_paused():
             self.audio_recorder.resume()
-            self.btn_pause.set_label("Pausar")
-            self.status_label.set_text("Grabación de dictado reanudada...")
+            self.btn_pause.set_label("Pause")
+            self.status_label.set_text("Dictation recording resumed...")
         else:
             self.audio_recorder.pause()
-            self.btn_pause.set_label("Reanudar")
-            self.status_label.set_text("Grabación de dictado pausada")
+            self.btn_pause.set_label("Resume")
+            self.status_label.set_text("Dictation recording paused")
 
     def on_stop_clicked(self, widget):
         if not self.is_recording or not self.audio_recorder:
@@ -199,16 +199,16 @@ class DictationTab(Gtk.Box):
         self.btn_file_generate.set_sensitive(True)
         self.audio_chooser.set_sensitive(True)
         self.chk_remote_whisper.set_sensitive(True)
-        self.btn_pause.set_label("Pausar")
+        self.btn_pause.set_label("Pause")
 
         if elapsed_sec < 2.0 or not os.path.exists(temp_audio_file) or os.path.getsize(temp_audio_file) < 1000:
             DialogUtils.show_error(
                 self.parent_window,
-                "Grabación muy corta",
-                "La grabación duró menos de 2 segundos o no contenía audio. "
-                "Por favor, habla al menos 3-5 segundos para procesar el dictado."
+                "Recording Too Short",
+                "The recording lasted less than 2 seconds or contained no audio. "
+                "Please speak for at least 3-5 seconds to process dictation."
             )
-            self.status_label.set_text("Grabación cancelada (duración < 2 segundos).")
+            self.status_label.set_text("Recording canceled (duration < 2 seconds).")
             return
 
         self.btn_rec.set_sensitive(False)
@@ -218,7 +218,7 @@ class DictationTab(Gtk.Box):
 
         self.is_running = True
         self.progress_bar.set_fraction(0.0)
-        self.progress_bar.set_text("Procesando audio y conservando grabación...")
+        self.progress_bar.set_text("Processing audio and archiving recording...")
         self.progress_bar.show()
 
         threading.Thread(
@@ -240,14 +240,14 @@ class DictationTab(Gtk.Box):
 
             if backup_mp3:
                 status_msg = (
-                    f"¡Apuntes generados exitosamente!\n"
-                    f"Audio Original: {os.path.basename(input_file)}\n"
-                    f"Audio MP3: {os.path.basename(backup_mp3)}"
+                    f"Notes generated successfully!\n"
+                    f"Original Audio: {os.path.basename(input_file)}\n"
+                    f"MP3 Audio: {os.path.basename(backup_mp3)}"
                 )
             else:
                 status_msg = (
-                    f"¡Apuntes generados desde texto bruto!\n"
-                    f"Texto Bruto: {os.path.basename(raw_text_path)}"
+                    f"Notes generated from raw text!\n"
+                    f"Raw Text: {os.path.basename(raw_text_path)}"
                 )
             GLib.idle_add(self._on_complete, True, status_msg)
         except Exception as e:
@@ -257,7 +257,7 @@ class DictationTab(Gtk.Box):
     def on_file_generate_clicked(self, widget):
         audio_path = self.audio_chooser.get_filename()
         if not audio_path:
-            DialogUtils.show_error(self.parent_window, "Archivo no seleccionado", "Selecciona un archivo de audio.")
+            DialogUtils.show_error(self.parent_window, "No File Selected", "Please select an audio file.")
             return
 
         self.btn_file_generate.set_sensitive(False)
@@ -266,7 +266,7 @@ class DictationTab(Gtk.Box):
         self.chk_remote_whisper.set_sensitive(False)
         self.is_running = True
         self.progress_bar.set_fraction(0.0)
-        self.progress_bar.set_text("Procesando archivo de audio...")
+        self.progress_bar.set_text("Processing audio file...")
         self.progress_bar.show()
 
         threading.Thread(
@@ -290,7 +290,7 @@ class DictationTab(Gtk.Box):
         self.status_label.set_text(message)
         self.progress_bar.set_fraction(progress)
         percentage = int(progress * 100)
-        self.progress_bar.set_text(f"Progreso: {percentage}%")
+        self.progress_bar.set_text(f"Progress: {percentage}%")
 
     def _on_complete(self, success: bool, status_text: str):
         self.is_running = False
@@ -298,7 +298,7 @@ class DictationTab(Gtk.Box):
 
         self.btn_rec.set_sensitive(True)
         self.btn_pause.set_sensitive(False)
-        self.btn_pause.set_label("Pausar")
+        self.btn_pause.set_label("Pause")
         self.btn_stop.set_sensitive(False)
         self.btn_file_generate.set_sensitive(True)
         self.audio_chooser.set_sensitive(True)
@@ -309,6 +309,6 @@ class DictationTab(Gtk.Box):
         self.audio_chooser.unselect_all()
 
         if success:
-            DialogUtils.show_info(self.parent_window, "Dictado Completado", status_text)
+            DialogUtils.show_info(self.parent_window, "Dictation Completed", status_text)
         else:
-            DialogUtils.show_error(self.parent_window, "Error de Procesamiento", status_text)
+            DialogUtils.show_error(self.parent_window, "Processing Error", status_text)

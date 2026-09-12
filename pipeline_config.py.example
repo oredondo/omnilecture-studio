@@ -2,7 +2,7 @@
 # Copy this file to 'pipeline_config.py' and set your actual credentials.
 
 API_BASE_URL = "https://leria.gal/api"
-API_KEY = "tu_api_key_aqui"
+API_KEY = "your_api_key_here"
 MODEL_NAME = "leria:redacta"
 
 # Crop the right 25% of the video frame to ignore the webinar chat

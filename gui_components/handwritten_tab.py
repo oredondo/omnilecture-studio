@@ -11,7 +11,7 @@ from gi.repository import Gtk, GLib, Pango
 
 from gui_components.dialogs import DialogUtils
 
-logger = logging.getLogger("ZoomRecorderGUI.HandwrittenTab")
+logger = logging.getLogger("OmniLectureGUI.HandwrittenTab")
 
 
 class HandwrittenTab(Gtk.Box):
@@ -32,11 +32,11 @@ class HandwrittenTab(Gtk.Box):
 
     def _build_ui(self):
         hw_title = Gtk.Label()
-        hw_title.set_markup("<b>Digitalización de Apuntes Manuscritos</b>")
+        hw_title.set_markup("<b>Handwritten Notes Digitization</b>")
         hw_title.modify_font(Pango.FontDescription("bold 12"))
         self.pack_start(hw_title, False, False, 5)
 
-        hw_desc = Gtk.Label(label="Convierte fotos de apuntes manuscritos a Markdown (.md) respetando la información original.")
+        hw_desc = Gtk.Label(label="Converts handwritten note photos into Markdown (.md) and Word (.docx) with Zero Invention.")
         hw_desc.set_line_wrap(True)
         hw_desc.set_justify(Gtk.Justification.CENTER)
         hw_desc.modify_font(Pango.FontDescription("italic 9"))
@@ -45,11 +45,11 @@ class HandwrittenTab(Gtk.Box):
         hw_file_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self.pack_start(hw_file_box, False, False, 5)
 
-        self.btn_select_images = Gtk.Button(label="Seleccionar Fotos de Apuntes (.jpg, .png...)")
+        self.btn_select_images = Gtk.Button(label="Select Note Photos (.jpg, .png...)")
         self.btn_select_images.connect("clicked", self.on_select_images_clicked)
         hw_file_box.pack_start(self.btn_select_images, False, False, 0)
 
-        self.lbl_handwritten_count = Gtk.Label(label="0 imágenes seleccionadas")
+        self.lbl_handwritten_count = Gtk.Label(label="0 images selected")
         self.lbl_handwritten_count.modify_font(Pango.FontDescription("monospace 9"))
         hw_file_box.pack_start(self.lbl_handwritten_count, False, False, 0)
 
@@ -58,7 +58,7 @@ class HandwrittenTab(Gtk.Box):
         hw_display = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
         self.pack_start(hw_display, True, True, 0)
 
-        self.handwritten_status_label = Gtk.Label(label="Selecciona las fotos manuscritas y presiona Generar")
+        self.handwritten_status_label = Gtk.Label(label="Select handwritten photos and click Generate")
         self.handwritten_status_label.set_line_wrap(True)
         self.handwritten_status_label.set_justify(Gtk.Justification.CENTER)
         self.handwritten_status_label.modify_font(Pango.FontDescription("monospace bold 10"))
@@ -71,14 +71,14 @@ class HandwrittenTab(Gtk.Box):
         self.handwritten_progress_bar.hide()
         hw_display.pack_start(self.handwritten_progress_bar, False, False, 5)
 
-        self.btn_generate = Gtk.Button(label="Generar Markdown Manuscrito")
+        self.btn_generate = Gtk.Button(label="Generate Handwritten Notes")
         self.btn_generate.get_style_context().add_class("suggested-action")
         self.btn_generate.connect("clicked", self.on_generate_handwritten_clicked)
         self.pack_start(self.btn_generate, False, False, 0)
 
     def on_select_images_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
-            title="Seleccionar Fotografías de Apuntes",
+            title="Select Handwritten Note Photos",
             parent=self.parent_window,
             action=Gtk.FileChooserAction.OPEN
         )
@@ -89,7 +89,7 @@ class HandwrittenTab(Gtk.Box):
         dialog.set_select_multiple(True)
 
         filter_images = Gtk.FileFilter()
-        filter_images.set_name("Imágenes (*.jpg, *.png, *.heic, *.webp...)")
+        filter_images.set_name("Images (*.jpg, *.png, *.heic, *.webp...)")
         for ext in ["*.jpg", "*.jpeg", "*.png", "*.bmp", "*.webp", "*.heic", "*.HEIC", "*.heif", "*.HEIF"]:
             filter_images.add_pattern(ext)
         dialog.add_filter(filter_images)
@@ -98,7 +98,7 @@ class HandwrittenTab(Gtk.Box):
         if response == Gtk.ResponseType.ACCEPT:
             self.selected_images = dialog.get_filenames()
             count = len(self.selected_images)
-            self.lbl_handwritten_count.set_text(f"{count} imágenes seleccionadas")
+            self.lbl_handwritten_count.set_text(f"{count} images selected")
             logger.info(f"Selected {count} handwritten note images for processing.")
         dialog.destroy()
 
@@ -106,8 +106,8 @@ class HandwrittenTab(Gtk.Box):
         if not self.selected_images:
             DialogUtils.show_error(
                 self.parent_window,
-                "Imágenes no seleccionadas",
-                "Por favor, selecciona al menos una fotografía de apuntes manuscritos antes de continuar."
+                "No Images Selected",
+                "Please select at least one photo of handwritten notes before proceeding."
             )
             return
 
@@ -118,7 +118,7 @@ class HandwrittenTab(Gtk.Box):
 
         self.is_running_handwritten = True
         self.handwritten_progress_bar.set_fraction(0.0)
-        self.handwritten_progress_bar.set_text("Iniciando análisis manuscrito...")
+        self.handwritten_progress_bar.set_text("Starting handwritten analysis...")
         self.handwritten_progress_bar.show()
 
         threading.Thread(
@@ -135,7 +135,7 @@ class HandwrittenTab(Gtk.Box):
             from pipeline.handwritten_notes import HandwrittenNotesGenerator
             generator = HandwrittenNotesGenerator(image_paths)
             md_path, _ = generator.run(status_callback=progress_cb)
-            status_msg = f"¡Apuntes manuscritos generados con éxito en:\n{os.path.basename(md_path)}"
+            status_msg = f"Handwritten notes generated successfully in:\n{os.path.basename(md_path)}"
             GLib.idle_add(self._on_handwritten_complete, True, status_msg)
         except Exception as e:
             logger.exception("Handwritten Notes pipeline failed in GUI:")
@@ -145,7 +145,7 @@ class HandwrittenTab(Gtk.Box):
         self.handwritten_status_label.set_text(message)
         self.handwritten_progress_bar.set_fraction(progress)
         percentage = int(progress * 100)
-        self.handwritten_progress_bar.set_text(f"Progreso: {percentage}%")
+        self.handwritten_progress_bar.set_text(f"Progress: {percentage}%")
 
     def _on_handwritten_complete(self, success: bool, status_text: str):
         self.is_running_handwritten = False
@@ -157,9 +157,9 @@ class HandwrittenTab(Gtk.Box):
         self.btn_select_images.set_sensitive(True)
         self.handwritten_status_label.set_text(status_text)
         self.selected_images = []
-        self.lbl_handwritten_count.set_text("0 imágenes seleccionadas")
+        self.lbl_handwritten_count.set_text("0 images selected")
 
         if success:
-            DialogUtils.show_info(self.parent_window, "Proceso Completado", status_text)
+            DialogUtils.show_info(self.parent_window, "Process Completed", status_text)
         else:
-            DialogUtils.show_error(self.parent_window, "Error de Procesamiento", status_text)
+            DialogUtils.show_error(self.parent_window, "Processing Error", status_text)

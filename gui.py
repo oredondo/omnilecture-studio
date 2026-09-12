@@ -17,14 +17,15 @@ except ValueError:
     pass
 from gi.repository import Gtk, GLib
 
+import config
+
 # Set Application ID and Window Class Name for GNOME/Wayland taskbar grouping
 try:
-    GLib.set_prgname("zoom-screen-recorder")
-    GLib.set_application_name("Grabador y Apuntes EIR")
+    GLib.set_prgname("omnilecture-studio")
+    GLib.set_application_name(getattr(config, "APP_TITLE", "OmniLecture Studio"))
 except Exception:
     pass
 
-import config
 from gui_components.dialogs import DialogUtils
 from gui_components.recorder_tab import RecorderTab
 from gui_components.eir_notes_tab import EIRNotesTab
@@ -40,14 +41,16 @@ logging.basicConfig(
         logging.FileHandler(config.LOG_FILE)
     ]
 )
-logger = logging.getLogger("ZoomRecorderGUI")
+logger = logging.getLogger("OmniLectureGUI")
 
 
 class ZoomRecorderGUI(Gtk.Window):
-    """Native GTK 3 Graphical User Interface for Zoom and Screen Recorder with EIR Notes pipeline."""
+    """Native GTK 3 Graphical User Interface for OmniLecture Studio recorder and multimodal notes suite."""
 
     def __init__(self):
-        super().__init__(title="Grabador y Apuntes EIR")
+        app_title = getattr(config, "APP_TITLE", "OmniLecture Studio")
+        app_subtitle = getattr(config, "APP_SUBTITLE", "Screen, Audio & Handwritten AI Study Suite")
+        super().__init__(title=f"{app_title} - {app_subtitle}")
         self.set_default_size(460, 420)
         self.set_resizable(True)
         self.set_position(Gtk.WindowPosition.CENTER)
@@ -70,8 +73,8 @@ class ZoomRecorderGUI(Gtk.Window):
         # HeaderBar (GNOME Native Style)
         hb = Gtk.HeaderBar()
         hb.set_show_close_button(True)
-        hb.props.title = "Zoom & Screen Recorder"
-        hb.props.subtitle = "EIR Apuntes y Memorización"
+        hb.props.title = getattr(config, "APP_TITLE", "OmniLecture Studio")
+        hb.props.subtitle = getattr(config, "APP_SUBTITLE", "Screen, Audio & Handwritten AI Study Suite")
         self.set_titlebar(hb)
 
         # Whisper Endpoint / Local Toggle Button in HeaderBar
@@ -90,35 +93,36 @@ class ZoomRecorderGUI(Gtk.Window):
         self.notebook = Gtk.Notebook()
         self.add(self.notebook)
 
-        # Tab 1: Grabador
+        # Tab 1: Recorder
         self.recorder_tab = RecorderTab(parent_window=self)
-        self.notebook.append_page(self.recorder_tab, Gtk.Label(label="Grabador"))
+        self.notebook.append_page(self.recorder_tab, Gtk.Label(label="Recorder"))
 
-        # Tab 2: Apuntes EIR
+        # Tab 2: Class Notes
+        tab_label = getattr(config, "STUDY_TAB_TITLE", "Class Notes")
         self.eir_tab = EIRNotesTab(parent_window=self)
-        self.notebook.append_page(self.eir_tab, Gtk.Label(label="Apuntes EIR"))
+        self.notebook.append_page(self.eir_tab, Gtk.Label(label=tab_label))
 
-        # Tab 3: Manuscritos
+        # Tab 3: Handwritten Notes
         self.handwritten_tab = HandwrittenTab(parent_window=self)
-        self.notebook.append_page(self.handwritten_tab, Gtk.Label(label="Manuscritos"))
+        self.notebook.append_page(self.handwritten_tab, Gtk.Label(label="Handwritten"))
 
-        # Tab 4: Dictado por Voz
+        # Tab 4: Voice Dictation
         self.dictation_tab = DictationTab(parent_window=self)
-        self.notebook.append_page(self.dictation_tab, Gtk.Label(label="Dictado"))
+        self.notebook.append_page(self.dictation_tab, Gtk.Label(label="Dictation"))
 
     def _update_whisper_toggle_label(self, is_remote: bool):
         if is_remote:
-            self.btn_whisper_toggle.set_label("🌐 Whisper Remoto")
+            self.btn_whisper_toggle.set_label("🌐 Remote Whisper")
             self.btn_whisper_toggle.set_tooltip_text(
-                "Whisper Remoto activo (https://leria.gal/api/v1/audio/transcriptions).\n"
-                "Haz clic para cambiar a Whisper Local (offline CPU)."
+                "Remote Whisper active (https://leria.gal/api/v1/audio/transcriptions).\n"
+                "Click to switch to Local Whisper (offline CPU)."
             )
             self.btn_whisper_toggle.get_style_context().add_class("suggested-action")
         else:
-            self.btn_whisper_toggle.set_label("💻 Whisper Local")
+            self.btn_whisper_toggle.set_label("💻 Local Whisper")
             self.btn_whisper_toggle.set_tooltip_text(
-                "Whisper Local activo: faster-whisper (CPU int8).\n"
-                "Haz clic para cambiar a Whisper Remoto (Leria API)."
+                "Local Whisper active: faster-whisper (CPU int8).\n"
+                "Click to switch to Remote Whisper (Leria API)."
             )
             self.btn_whisper_toggle.get_style_context().remove_class("suggested-action")
 
@@ -150,8 +154,8 @@ class ZoomRecorderGUI(Gtk.Window):
         if self.recorder_tab.is_recording:
             confirm = DialogUtils.ask_confirmation(
                 self,
-                "Grabación en curso",
-                "Hay una grabación activa. ¿Deseas detenerla y salir?"
+                "Recording in Progress",
+                "There is an active recording session. Do you want to stop and exit?"
             )
             if confirm:
                 self.recorder_tab.stop_recording_session_and_process()
@@ -161,8 +165,8 @@ class ZoomRecorderGUI(Gtk.Window):
         if self.recorder_tab.is_processing:
             DialogUtils.show_error(
                 self,
-                "Procesamiento en curso",
-                "Espere a que finalice la compresión antes de cerrar."
+                "Processing in Progress",
+                "Please wait for compression to finish before closing."
             )
             return True
 
@@ -171,8 +175,8 @@ class ZoomRecorderGUI(Gtk.Window):
                 self.dictation_tab.is_running):
             DialogUtils.show_error(
                 self,
-                "Generación en curso",
-                "Espere a que finalice la generación de apuntes antes de cerrar."
+                "Generation in Progress",
+                "Please wait for note generation to finish before closing."
             )
             return True
 

@@ -1,6 +1,6 @@
 # Architecture, Testing, PEP 8, and Security Rules
 
-This document specifies the software engineering, modular architecture, testing, style, and security guidelines for the **Zoom & Screen Recorder + EIR & Handwritten Notes Pipeline** project.
+This document specifies the software engineering, modular architecture, testing, style, and security guidelines for the **OmniLecture Studio** project.
 
 ---
 

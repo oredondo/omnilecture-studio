@@ -130,14 +130,14 @@ class NotesGenerator:
         
         # Step 1: Run Video OCR
         if status_callback:
-            status_callback("Extrayendo texto de diapositivas con OCR...", 0.05)
+            status_callback("Extracting slide text with OCR...", 0.05)
         ocr_extractor = VideoOCRExtractor(self.video_path, self.temp_workspace)
         ocr_file = ocr_extractor.extract_text(sample_interval_sec)
         
         # Step 2: Run Audio Transcription
         if status_callback:
-            mode_lbl = "remoto Leria" if self.use_remote_whisper else "local"
-            status_callback(f"Transcribiendo audio de la clase (Whisper {mode_lbl})...", 0.20)
+            mode_lbl = "remote Leria" if self.use_remote_whisper else "local"
+            status_callback(f"Transcribing audio with Whisper ({mode_lbl})...", 0.20)
         transcriber = AudioTranscriber(
             self.audio_path,
             self.temp_workspace,
@@ -168,12 +168,12 @@ class NotesGenerator:
             ocr_chunk = ocr_chunks[i] if i < len(ocr_chunks) else ""
             trans_chunk = trans_chunks[i] if i < len(trans_chunks) else ""
             
-            chunk_title = f"{clean_title} - Parte {i+1}" if num_chunks > 1 else clean_title
+            chunk_title = f"{clean_title} - Part {i+1}" if num_chunks > 1 else clean_title
             logger.info(f"Processing chunk {i+1}/{num_chunks}: '{chunk_title}'...")
             
             if status_callback:
                 progress = 0.50 + (i / num_chunks) * 0.35
-                status_callback(f"Consolidando y analizando bloque {i+1} de {num_chunks}...", progress)
+                status_callback(f"Consolidating and analyzing block {i+1} of {num_chunks}...", progress)
                 
             chunk_notes, chunk_anki = graph.run(
                 ocr_content=ocr_chunk,
@@ -186,37 +186,27 @@ class NotesGenerator:
             
         # Step 4: Combine Chunk Results
         if status_callback:
-            status_callback("Unificando y deduplicando tarjetas...", 0.88)
+            status_callback("Combining notes and deduplicating Anki cards...", 0.88)
             
+        first_yaml = ""
         combined_bodies = []
         combined_questions = []
         
         # We use a set of lowercase fronts to prevent duplicate Anki flashcards
         seen_fronts = set()
-        combined_anki_rows = ["Front;Back;Extra;Tags"]
-        first_yaml = ""
+        combined_anki_rows = ["Front;Back;Extra;Tags"] if self.generate_anki else []
         
-        for idx, (notes_md, anki_csv_chunk) in enumerate(chunk_results):
-            # Parse YAML header
-            parts = notes_md.split("---")
-            if len(parts) >= 3:
-                if idx == 0:
-                    first_yaml = "---" + parts[1] + "---\n\n"
-                body_and_q = "---".join(parts[2:]).strip()
-            else:
-                body_and_q = notes_md.strip()
-                
-            # Extract questions if present
-            q_split = body_and_q.split("## Cuestionario de Autoevaluación")
-            body = q_split[0].strip()
-            questionnaire = q_split[1].strip() if len(q_split) > 1 else ""
-            
-            combined_bodies.append(body)
-            if questionnaire:
-                combined_questions.append(questionnaire)
+        for notes, anki in chunk_results:
+            yaml_part, body_part, questions_part = self._extract_yaml_and_body(notes)
+            if not first_yaml and yaml_part:
+                first_yaml = yaml_part
+            if body_part:
+                combined_bodies.append(body_part)
+            if questions_part:
+                combined_questions.append(questions_part)
                 
             # Process Anki rows with deduplication
-            for line in anki_csv_chunk.strip().splitlines():
+            for line in anki.strip().splitlines():
                 if not line.strip() or line.startswith("Front;Back;Extra;Tags"):
                     continue
                 parts_anki = line.split(";")
@@ -230,14 +220,14 @@ class NotesGenerator:
         # Build combined files
         final_notes_md = first_yaml + "\n\n".join(combined_bodies)
         if combined_questions:
-            final_notes_md += "\n\n## Cuestionario de Autoevaluación\n" + "\n\n".join(combined_questions)
+            final_notes_md += "\n\n## Self-Assessment Questionnaire\n" + "\n\n".join(combined_questions)
             
         combined_anki_csv = "\n".join(combined_anki_rows)
         
         # Step 5: Final LLM review and optimization pass on merged notes
         logger.info("Executing final LLM refinement and review pass on merged study notes...")
         if status_callback:
-            status_callback("Ejecutando revisión editorial final con IA...", 0.92)
+            status_callback("Running final editorial refinement with AI...", 0.92)
             
         try:
             final_notes_md = graph.llm.process_node(FINAL_REFINE_PROMPT, final_notes_md)
@@ -247,14 +237,15 @@ class NotesGenerator:
         
         # Step 6: Save files to output directory
         if status_callback:
-            status_callback("Guardando archivos y limpiando temporales...", 0.97)
+            status_callback("Saving files and converting to Word (.docx)...", 0.97)
             
         base_name = os.path.splitext(os.path.basename(self.video_path))[0]
         notes_dir = os.path.join(config.OUTPUT_DIR, "apuntes")
         os.makedirs(notes_dir, exist_ok=True)
         
         # Study Notes
-        notes_output_path = os.path.join(notes_dir, f"{base_name}_apuntes_EIR.md")
+        suffix = getattr(config, "NOTES_SUFFIX", "apuntes")
+        notes_output_path = os.path.join(notes_dir, f"{base_name}_{suffix}.md")
         with open(notes_output_path, "w", encoding="utf-8") as f:
             f.write(final_notes_md)
             
