@@ -2,7 +2,7 @@
 # Copy this file to 'pipeline_config.py' and set your actual credentials.
 
 API_BASE_URL = "https://leria.gal/api"
-API_KEY = "tu_api_key_aqui"
+API_KEY = "your_api_key_here"
 MODEL_NAME = "leria:redacta"
 
 # Crop the right 25% of the video frame to ignore the webinar chat
@@ -11,9 +11,16 @@ OCR_CROP_RIGHT = 0.25
 # Process long classes in chunks of 30 minutes to prevent context limits and output cuts
 OCR_CHUNK_MINUTES = 30
 
-# Whisper transcription model size ('tiny', 'base', 'small', 'medium')
+# Whisper transcription mode: True for remote API endpoint, False for local faster-whisper
+USE_REMOTE_WHISPER = True
+
+# Remote Whisper transcription endpoint (uses the same API_KEY as LLM)
+WHISPER_ENDPOINT = "https://leria.gal/api/v1/audio/transcriptions"
+
+# Whisper transcription model size ('tiny', 'base', 'small', 'medium') for local mode
 # 'base' is recommended for Intel i7 CPU to achieve 2.5x speed boost over 'small'.
 WHISPER_MODEL = "base"
 
 # Enable or disable Anki flashcards generation by default (True/False)
 GENERATE_ANKI = False
+

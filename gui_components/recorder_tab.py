@@ -17,7 +17,7 @@ from video_recorder import VideoRecorder
 from audio_recorder import AudioRecorder
 from processor import MediaProcessor
 
-logger = logging.getLogger("ZoomRecorderGUI.RecorderTab")
+logger = logging.getLogger("OmniLectureGUI.RecorderTab")
 
 
 class RecorderTab(Gtk.Box):
@@ -68,6 +68,16 @@ class RecorderTab(Gtk.Box):
 
         # Separator
         self.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
+
+        # Legal Disclaimer Notice
+        lbl_disclaimer = Gtk.Label()
+        lbl_disclaimer.set_markup(
+            "<small>⚖️ <i><b>Mandatory legal notice:</b> It is legally required to inform all "
+            "participants before recording any video call.</i></small>"
+        )
+        lbl_disclaimer.set_line_wrap(True)
+        lbl_disclaimer.set_xalign(0)
+        self.pack_start(lbl_disclaimer, False, False, 2)
 
         # Display Box
         display_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)

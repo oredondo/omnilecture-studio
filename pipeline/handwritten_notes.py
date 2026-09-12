@@ -132,14 +132,14 @@ class HandwrittenNotesGenerator:
         logger.info(f"Starting Handwritten Notes Pipeline for {len(self.image_paths)} images...")
         
         if status_callback:
-            status_callback("Iniciando análisis de fotografías manuscritas...", 0.05)
+            status_callback("Starting analysis of handwritten photos...", 0.05)
             
         # Step 1: Perform OCR extraction
         extractor = HandwrittenOCRExtractor(self.image_paths)
         raw_ocr_text, page_texts = extractor.extract_all(status_callback=status_callback)
         
         if not raw_ocr_text.strip():
-            raise ValueError("No se pudo extraer texto de las imágenes proporcionadas.")
+            raise ValueError("Could not extract any text from the provided images.")
             
         # Save raw OCR file in temp workspace
         raw_ocr_path = os.path.join(self.temp_workspace, "ocr_manuscrito_bruto.txt")
@@ -148,7 +148,7 @@ class HandwrittenNotesGenerator:
             
         # Step 2: Query LLM to transcribe & format faithfully
         if status_callback:
-            status_callback("Generando Markdown fiel mediante IA (Cero invención)...", 0.60)
+            status_callback("Generating faithful Markdown with AI (Zero Invention)...", 0.60)
             
         logger.info("Sending raw OCR content to LLM for faithful Markdown conversion...")
         markdown_content = self.llm_manager.process_node(
@@ -157,7 +157,7 @@ class HandwrittenNotesGenerator:
         )
         
         if status_callback:
-            status_callback("Guardando archivos y finalizando...", 0.90)
+            status_callback("Saving files and finalizing...", 0.90)
             
         # Step 3: Write outputs
         now = datetime.now()
@@ -192,7 +192,7 @@ class HandwrittenNotesGenerator:
         logger.info(f"Handwritten Notes Pipeline completed in {elapsed:.2f}s. Output: {output_md_path}")
         
         if status_callback:
-            status_callback("¡Apuntes manuscritos generados con éxito!", 1.0)
+            status_callback("Handwritten notes generated successfully!", 1.0)
             
         return output_md_path, output_raw_path
 

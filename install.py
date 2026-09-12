@@ -94,9 +94,13 @@ def install():
 
     icon_ref = src_png if os.path.exists(src_png) else "zoom-screen-recorder"
 
+    import config
+    app_name = getattr(config, "APP_TITLE", "OmniLecture Studio")
+    app_comment = getattr(config, "APP_SUBTITLE", "Screen, Audio & Handwritten AI Study Suite")
+
     desktop_entry = f"""[Desktop Entry]
-Name=Grabador y Apuntes EIR
-Comment=Grabador de pantalla, dictados y generador de apuntes e tarjetas Anki con IA
+Name={app_name}
+Comment={app_comment}
 Exec={python_bin} {gui_path}
 Path={script_dir}
 Icon={icon_ref}
@@ -104,7 +108,7 @@ Terminal=false
 Type=Application
 Categories=Utility;AudioVideo;Education;
 StartupNotify=true
-StartupWMClass=zoom-screen-recorder
+StartupWMClass=omnilecture-studio
 """
 
     try:

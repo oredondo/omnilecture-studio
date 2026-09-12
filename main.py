@@ -191,10 +191,17 @@ class ZoomRecorderApp:
 
     def run(self):
         """Prompts user to select mode or parses command line arguments."""
+        app_title = getattr(config, "APP_TITLE", "OmniLecture Studio")
         print("=========================================================")
-        print("     Zoom Screen & Audio Auto-Recorder (Linux Wayland)   ")
+        print(f"       {app_title} - Screen & Audio Recorder            ")
         print("=========================================================")
         print(f"Output directory: {config.OUTPUT_DIR}")
+        print("---------------------------------------------------------")
+        print(" [MANDATORY LEGAL NOTICE]")
+        print(" It is legally required (GDPR and privacy regulations)")
+        print(" to inform all participants before starting to record")
+        print(" any video call or virtual meeting.")
+        print("---------------------------------------------------------")
         
         # Check command-line flags
         mode = None
