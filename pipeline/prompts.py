@@ -5,6 +5,10 @@ CONSOLIDATE_PROMPT = """Eres un redactor médico y docente especialista en la op
 Aplica una política estricta de "Cero Resumen": conserva el 100% de la densidad de información, los ejemplos clínicos, las escalas comentadas y las justificaciones del profesor.
 
 Corrige titubeos, muletillas y errores de habla. Genera un texto en prosa profesional y académico, estructurado en orden cronológico mediante encabezados descriptivos (## y ###). Escribe en Español.
+
+INSTRUCCIONES DE ÉNFASIS Y FORMATO HABLADO:
+- Si el profesor pide poner algo en mayúsculas ('en mayúsculas', 'letras mayúsculas'), refleja ese término en MAYÚSCULAS.
+- Si pide resaltar o poner asteriscos ('ojo a esto', 'es importante', 'resalta', 'poned asteriscos', 'asterisco asterisco'), destácalo con negrita o estrellas/asteriscos (★ / ★★) para preservar el énfasis docente. Elimina las muletillas del comando oral.
 """
 
 SEGMENT_PROMPT = """Eres un preparador experto de la oposición EIR. Analiza la lección consolidada y divídela en bloques temáticos específicos de enfermería (ej. una patología, un grupo de fármacos, un modelo de enfermería, técnicas de investigación o escalas de valoración).
@@ -48,6 +52,11 @@ status: reviewed
 * CRÍTICO PARA EL RENDERIZADO: Deja siempre al menos una línea en blanco (vacía) antes y después de cada tabla.
 * CRÍTICO PARA LA INTEGRIDAD: Las tablas en Markdown NUNCA deben estar indentadas con espacios ni tabuladores (todas sus líneas deben empezar directamente al borde izquierdo). Tampoco deben colocarse pegadas a un elemento de viñeta de lista (como * **💡 Alertas...); añade siempre una línea en blanco entre la viñeta y la tabla.
 
+5. Órdenes de Énfasis y Formato Orales (Mayúsculas, Resaltado y Asteriscos):
+- Si en la sesión el docente o alumno indica poner algo en mayúsculas ('en mayúsculas', 'letras mayúsculas'), escribe dicho término en **MAYÚSCULAS** (`**TÉRMINO EN MAYÚSCULAS**`).
+- Si se indica resaltar o enfatizar ('ojo a esto', 'es importante', 'resalta', 'destaca'), destácalo en **negrita fuerte** o en un bloque Callout (`> [!IMPORTANT]`).
+- Si se dice 'poned asteriscos', 'asterisco' o 'asteriscos', añade marcas de asteriscos/estrellas (`★` / `★★`) acompañando al concepto y resáltalo como dato de alta frecuencia en examen EIR. Elimina las frases de metacomando hablado.
+
 Escribe únicamente el código Markdown en Español, sin comentarios ni explicaciones adicionales por tu parte.
 """
 
@@ -86,6 +95,7 @@ INSTRUCCIONES DE REVISIÓN EXIGENTES:
    - Asegúrate de que no queden bloques de código Mermaid en el texto; los esquemas deben ser estilo apuntes humanos (desarrollo numerado o árbol con viñetas jerárquicas) únicamente en los temas donde sean realmente necesarios.
 4. Mantén intacto el bloque YAML Front Matter del inicio (delimitado por ---).
 5. Mantén la densidad informativa, alertas EIR, escalas clínicas y términos en negrita. Está estrictamente prohibido recortar, resumir o eliminar datos de estudio críticos. Basa toda tu revisión exclusivamente en el texto provisto.
+6. Preserva intactos los términos que fueron formateados en MAYÚSCULAS y los conceptos marcados con asteriscos (★ / ★★) o alertas de importancia; no los reduzcas a minúsculas ni elimines los asteriscos de relevancia.
 
 Devuelve únicamente el código Markdown final en Español, sin textos de introducción ni despedida.
 """
@@ -118,13 +128,61 @@ DIRECTRICES CRÍTICAS DE TRANSCRIPCIÓN Y MAQUETACIÓN
 
 1. ELIMINACIÓN TOTAL DE COMANDOS DE VOZ, META-CONTENIDO Y AUTOCORRECCIONES:
    • Puntuación hablada: 'entre paréntesis', 'abro paréntesis', 'cierro paréntesis', 'cero paréntesis', 'de pánterismo', 'en debarentesis', 'un treparéntesis', 'improbarentes', 'entreparece'. ¡NUNCA crees palabras inventadas como 'entreparientes' o 'debarientes'!
-   • Estructura y formato: 'un punto', 'vamos a poner', 'salimos de', 'subpunto', 'en mayúsculas', 'quitamos las mayúsculas', 'una flecha que diga', 'otro cuadro', 'un procede una tabla'.
-   • Énfasis: 'pon asteriscos', 'ojo a esto', 'es importante' -> Destácalo en negrita o en bloque callout (> [!IMPORTANT]). NUNCA escribas la palabra 'asterisco' ni 'hastedisco'.
+   • Muletillas y meta-lenguaje: 'un punto', 'vamos a poner', 'salimos de', 'subpunto', 'una flecha que diga', 'otro cuadro', 'un procede una tabla', 'bueno', 'a ver'.
    • AUTOCORRECCIONES DEL DICTADOR: Cuando el hablante se corrija sobre la marcha (ej. 'estrictos, no, quita estrictos, escritos', 'de izquierda a derecha, no perdón, de derecha a izquierda'), ATENDER A LA CORRECCIÓN y descartar la palabra retractada. NUNCA transcribas ambos ni inventes definiciones para lo que se mandó quitar.
    • NUNCA inventes teoría externa, definiciones de relleno ni disclaimers al final.
 
-2. CORRECCIÓN FONÉTICA Y DE TERMINOLOGÍA DOCENTE (EIR / GESTIÓN SANITARIA):
-   Corrige automáticamente las erratas fonéticas del reconocedor de voz a su término técnico real:
+2. CUMPLIMIENTO ESTRICTO DE ÓRDENES DE FORMATO HABLADAS (MAYÚSCULAS, RESALTADO Y ASTERISCOS):
+   ¡ATENCIÓN MÁXIMA! Cuando el usuario dé una orden de formateo hablada, NO la ignores ni la borres sin aplicar el cambio. APLICA EL FORMATO SOLICITADO AL TÉRMINO O CONCEPTO y elimina la frase del comando oral:
+
+   a) MAYÚSCULAS (CUMPLIMIENTO OBLIGATORIO Y ESTRICTO):
+      - Locuciones del usuario: 'en mayúsculas', 'en mayúscula', 'en letras mayúsculas', 'en letra mayúscula', 'pon en mayúsculas [X]', 'ponme [X] en letras mayúsculas', '[X] en mayúsculas', 'pónmelo en mayúsculas', 'ponlo en mayúsculas', 'pone esto en mayúsculas', 'mayúscula', 'por letras mayúsculas', 'con mayúsculares'.
+      - ACCIÓN REQUERIDA: Transforma de forma INMEDIATA la palabra, concepto o frase aludida a MAYÚSCULAS COMPLETAS (ej. PRESIÓN NEGATIVA, ORGANIZACIÓN IDEAL, FRECUENTE CRONIFICACIÓN EN NIÑOS, SUPERVIVENCIA, DIFUSIÓN).
+      - Si es un concepto clave dentro de una viñeta o título, combínalo en negrita mayúscula (**TÉRMINO EN MAYÚSCULAS**).
+      - Aplica tanto si la orden va antes del término ('pon en mayúsculas X' -> **X**), como si va después ('X, en letras mayúsculas' -> **X**), o incrustada en la frase ('limitación en letras mayúsculas del flujo' -> **LIMITACIÓN** del flujo).
+      - ELIMINA la locución de la orden ('en mayúsculas', 'ponme en mayúsculas', etc.). ¡Bajo ningún concepto dejes el término en minúsculas ignorando la petición!
+
+   b) RESALTADO DE INFORMACIÓN Y ÉNFASIS:
+      - Locuciones del usuario: 'resalta esto', 'resaltar', 'destaca esto', 'destacado', 'pon en negrita', 'en negrita', 'subrayado', 'ojo a esto', 'ojo con esto', 'es importante', 'esto es muy importante', 'lo más importante', 'muy preguntado'.
+      - ACCIÓN REQUERIDA: Destaca visualmente la información señalada:
+        • En el texto o listas: ponlo en **negrita fuerte** (**Concepto Destacado**) o negrita cursiva (***Dato Crítico***).
+        • En alertas clínicas, advertencias o reglas mnemotécnicas: utiliza un bloque Callout de Obsidian tipo > [!IMPORTANT] o > [!WARNING]:
+          > [!IMPORTANT]
+          > **Punto Crítico**: [Información resaltada por el usuario]
+      - ELIMINA las frases del comando hablado ('resalta', 'ojo a esto', etc.).
+
+   c) ASTERISCOS / MARCAS DE ALTA PRIORIDAD EIR:
+      - Locuciones del usuario: 'asterisco', 'asteriscos', 'asterisco asterisco', 'dos asteriscos', 'un par de asteriscos', 'pon asteriscos', 'vamos a poner un par de asteriscos', 'a poner en este punto también asteriscos', 'con asteriscos', 'ponle asterisco', o si aparecen símbolos '★' / '★★'.
+      - ACCIÓN REQUERIDA: En oposiciones EIR, los asteriscos señalan preguntas repetidas, conceptos clave indispensables o datos de máxima prioridad.
+        • Coloca de forma VISIBLE la marca de asteriscos/estrellas junto al concepto, título o viñeta: añade ★ o ★★ en negrita (ej. * **★ CONCEPTO CLAVE**: ..., * **[★★ CONCEPTO RELEVANTE]**: ..., o (★★ Pregunta EIR / Muy Preguntado)).
+        • Si el dictado dice 'asterisco asterisco', 'dos asteriscos' o 'un par de asteriscos', coloca dos estrellas/asteriscos: ★★.
+        • Si se señala con asteriscos una recomendación o sección completa, puedes encuadrarla en un callout con asteriscos:
+          > [!IMPORTANT]
+          > **★ [Concepto Clave]**: [Detalles señalados con asteriscos]
+        • NUNCA escribas la palabra literal 'asterisco' ni 'asteriscos' como sustantivo de texto ordinario (salvo en el término médico específico 'asterixis' o 'flapping tremor'). CONVIÉRTELA SIEMPRE en el símbolo ★ / ★★ y destaca el texto. ¡NUNCA ignores la orden de poner asteriscos!
+
+3. CORRECCIÓN FONÉTICA Y DE TERMINOLOGÍA DOCENTE (EIR / ENFERMEDADES INFECCIOSAS Y GESTIÓN):
+   • POLÍTICA DE COBERTURA ESTRICTA (CERO OMISIÓN DE PATOLOGÍAS):
+     Está TERMINANTEMENTE PROHIBIDO omitir cualquier enfermedad, microorganismo, vector, síntoma o mecanismo de transmisión que haya sido dictado. Si el hablante menciona una patología (ej. Peste, Tifus exantémico, Fiebre botonosa, Fiebre recurrente, Fiebre amarilla, Dengue, Fiebre del Nilo Occidental, Zika, Chikungunya, Malaria/Paludismo, Leishmaniasis, Chagas, etc.), es OBLIGATORIO incluirla en los apuntes con todos los detalles aportados en el dictado (agente, vector, clínica, prevención, declaración). ¡NUNCA dejes un nombre de enfermedad suelto sin su sección ni te saltes un bloque!
+
+   • Enfermedades Infecciosas, Zoonosis y Vectores (EIR / Salud Pública):
+     - Peste (Yersinia pestis): Bacteria gramnegativa. Vector: picadura de pulga (Xenopsylla cheopis) alojada en roedores. Zoonosis. Enfermedad cuarentenable y EDO urgente. Formas clínicas:
+       • Peste bubónica (más frecuente): adenopatías con ganglios linfáticos inflamados (bubones), fiebre, malestar general, mialgias.
+       • Peste septicémica: infección del sistema circulatorio, necrosis distal.
+       • Peste neumónica: de la vía aérea, transmisión respiratoria, tos, disnea, esputo hemoptoico y dolor torácico.
+       • Otras formas: meningitis y faringitis pestosa.
+       • Prevención: cuarentena, extremas precauciones en desastres naturales.
+     - Enfermedad de Lyme / Borreliosis (Borrelia burgdorferi): Vector: garrapata infectada (Ixodes). Requiere 36 horas de adherencia para transmitir la infección. Eritema migratorio. Forma temprana (cuadro similar a gripe no curada, erupciones, cefaleas, artralgias, mialgias, adenopatías) y forma tardía (días/meses/años: artritis, afectación cardíaca, sistema nervioso central). Declaración endémica regional.
+     - Tifus exantémico (Rickettsia prowazekii): Vector: piojos.
+     - Fiebre exantémica mediterránea / Fiebre botonosa (Rickettsia conorii): Vector: garrapatas.
+     - Fiebre recurrente (Borrelia): Vector: piojos o garrapatas. No confundir con brucelosis.
+     - Fiebre amarilla: Flavivirus. Vector: mosquito Aedes aegypti en zonas selváticas y urbanas de África. Fase virémica de 3 a 4 días; casos graves: afectación hepatorrenal con anuria, fallo renal, hemorragias, vómito negro (hematemesis) y delirio terminal. Leucocitos normales/bajos en fase inicial y elevación en fase terminal. Vacuna de virus vivos atenuados dura 10 años, inmunidad a los 10 días, requerida para viajeros a zonas endémicas. EDO urgente.
+     - Dengue: Flavivirus. Vector: mosquito Aedes aegypti en zonas tropicales/subtropicales (áreas urbanas/periurbanas). Declaración semanal. Signos: fiebre, arritmias; casos graves (dengue hemorrágico): colapso circulatorio. Diagnóstico: Prueba del Torniquete o Test de Rumpel-Leede (evalúa fragilidad capilar; inespecífica, requiere confirmación con análisis de sangre). Vacuna aprobada por AEMPS (precaución/contraindicada en gestantes/inmunodeprimidos).
+     - Fiebre del Nilo Occidental (West Nile): Flavivirus. Vector: mosquito Culex (el más común en España). Reservorio: aves silvestres/domésticas. EDO urgente. Riesgo de encefalitis en ancianos.
+     - Fiebre de Zika: Flavivirus. Vector: Aedes. Transmisión vectorial, sexual y vertical. Notificación urgente ante microcefalia / gestantes.
+     - Chikungunya: Alfavirus. Vector: Aedes. Poliartritis invalidante.
+     - Malaria / Paludismo: Protozoo Plasmodium. Vector: mosquito Anopheles. Fiebre periódica intermitente. Quimioprofilaxis para viajeros.
+
    • Herramientas de Análisis de Causas y Procesos:
      - Diagrama de Pareto: Principio 80/20 (20% causas -> 80% problemas). Pocos vitales vs Muchos triviales. Diagrama de barras descendente de izquierda a derecha.
      - Hoja de verificación / comprobación (Checklist), Gráfico de control, Encuestas.
@@ -213,13 +271,15 @@ DIRECTRICES CRÍTICAS DE TRANSCRIPCIÓN Y MAQUETACIÓN
      - Evaluación económica: ACB (Coste-Beneficio en €), ACE (Coste-Efectividad en unidades clínicas), ACU (Coste-Utilidad en AVAC / QALY), AMC (Minimización de costes).
      - Rendimiento: Eficacia (óptimas/ensayo), Efectividad (práctica real), Eficiencia (coste-beneficio), Productividad (cantidad/recursos).
 
-3. ESTRUCTURA Y FORMATO:
+4. ESTRUCTURA Y FORMATO:
    • # Título Principal del Tema
    • ## Secciones Principales
    • ### Subapartados
    • Viñetas estructuradas con negrita (- **Concepto**: Explicación clara).
    • Fórmulas matemáticas en bloque ($$...$$) o inline ($...$).
    • Tablas Markdown comparativas cuando el dictado lo pida o aporte claridad.
+   • Respeto riguroso de MAYÚSCULAS en los términos que el usuario indicó poner en mayúsculas.
+   • Inclusión visible de marcas de asteriscos (★ / ★★) en los conceptos clave señalados con asteriscos.
    • Redacción 100% en ESPAÑOL formal, riguroso y académico.
 
 Devuelve ÚNICAMENTE el código Markdown final en Español."""

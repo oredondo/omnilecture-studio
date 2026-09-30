@@ -76,3 +76,47 @@ class TestGUIComponentsImports:
         widget.get_active.return_value = True
         dict_tab.on_whisper_mode_toggled(widget)
         parent.set_use_remote_whisper.assert_called_with(True, source=dict_tab)
+
+    def test_dictation_tab_pause_and_elapsed_time(self):
+        from datetime import datetime, timedelta
+        from gui_components.dictation_tab import DictationTab
+
+        dict_tab = DictationTab.__new__(DictationTab)
+        dict_tab.is_recording = True
+        dict_tab.recording_start_time = datetime.now() - timedelta(seconds=60)
+        dict_tab.pause_start_time = None
+        dict_tab.total_paused_duration = timedelta(0)
+        dict_tab.audio_recorder = MagicMock()
+        dict_tab.audio_recorder.is_paused.return_value = False
+        dict_tab.timer_label = MagicMock()
+
+        # 1. Active recording: elapsed ~ 60s
+        elapsed = dict_tab.get_effective_elapsed_seconds()
+        assert 59.5 <= elapsed <= 61.5
+
+        # 2. Update timer during active recording
+        dict_tab._update_timer()
+        dict_tab.timer_label.set_text.assert_called_with("00:01:00")
+
+        # 3. Simulate paused 20 seconds ago
+        dict_tab.pause_start_time = datetime.now() - timedelta(seconds=20)
+        dict_tab.audio_recorder.is_paused.return_value = True
+
+        # Effective elapsed should be ~40s (60s total - 20s pause)
+        elapsed_paused = dict_tab.get_effective_elapsed_seconds()
+        assert 39.5 <= elapsed_paused <= 41.5
+
+        # Update timer during pause shows "(Pausa)"
+        dict_tab._update_timer()
+        dict_tab.timer_label.set_text.assert_called_with("00:00:40 (Pausa)")
+
+        # 4. Resume
+        dict_tab.total_paused_duration += (datetime.now() - dict_tab.pause_start_time)
+        dict_tab.pause_start_time = None
+        dict_tab.audio_recorder.is_paused.return_value = False
+
+        elapsed_resumed = dict_tab.get_effective_elapsed_seconds()
+        assert 39.5 <= elapsed_resumed <= 41.5
+        dict_tab._update_timer()
+        dict_tab.timer_label.set_text.assert_called_with("00:00:40")
+

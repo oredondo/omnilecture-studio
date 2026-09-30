@@ -1,7 +1,7 @@
 import os
 import logging
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import gi
 try:
@@ -33,6 +33,8 @@ class DictationTab(Gtk.Box):
         self.is_recording = False
         self.audio_recorder = None
         self.recording_start_time = None
+        self.pause_start_time = None
+        self.total_paused_duration = timedelta(0)
         self.timer_timeout_id = None
 
         self._build_ui()
@@ -156,6 +158,9 @@ class DictationTab(Gtk.Box):
 
         self.is_recording = True
         self.recording_start_time = datetime.now()
+        self.pause_start_time = None
+        self.total_paused_duration = timedelta(0)
+        self.timer_label.set_text("00:00:00")
         self.timer_timeout_id = GLib.timeout_add_seconds(1, self._update_timer)
 
         self.btn_rec.set_sensitive(False)
@@ -171,23 +176,29 @@ class DictationTab(Gtk.Box):
             return
 
         if self.audio_recorder.is_paused():
+            if self.pause_start_time:
+                self.total_paused_duration += (datetime.now() - self.pause_start_time)
+                self.pause_start_time = None
             self.audio_recorder.resume()
             self.btn_pause.set_label("Pausar")
             self.status_label.set_text("Grabación de dictado reanudada...")
+            self._update_timer()
         else:
             self.audio_recorder.pause()
+            self.pause_start_time = datetime.now()
             self.btn_pause.set_label("Reanudar")
             self.status_label.set_text("Grabación de dictado pausada")
+            self._update_timer()
 
     def on_stop_clicked(self, widget):
         if not self.is_recording or not self.audio_recorder:
             return
 
-        elapsed_sec = 0
-        if self.recording_start_time:
-            elapsed_sec = (datetime.now() - self.recording_start_time).total_seconds()
+        elapsed_sec = self.get_effective_elapsed_seconds()
 
         self.is_recording = False
+        self.pause_start_time = None
+        self.total_paused_duration = timedelta(0)
         if self.timer_timeout_id:
             GLib.source_remove(self.timer_timeout_id)
             self.timer_timeout_id = None
@@ -275,15 +286,27 @@ class DictationTab(Gtk.Box):
             daemon=True
         ).start()
 
+    def get_effective_elapsed_seconds(self) -> float:
+        """Returns the effective recording elapsed time in seconds, excluding pause durations."""
+        if not self.recording_start_time:
+            return 0.0
+        total_pause = getattr(self, "total_paused_duration", timedelta(0))
+        if getattr(self, "pause_start_time", None):
+            total_pause += (datetime.now() - self.pause_start_time)
+        effective = (datetime.now() - self.recording_start_time) - total_pause
+        return max(0.0, effective.total_seconds())
+
     def _update_timer(self) -> bool:
         if not self.is_recording or not self.recording_start_time:
             return False
-        if self.audio_recorder and self.audio_recorder.is_paused():
-            return True
-        delta = datetime.now() - self.recording_start_time
-        hours, remainder = divmod(int(delta.total_seconds()), 3600)
+        elapsed_sec = int(self.get_effective_elapsed_seconds())
+        hours, remainder = divmod(elapsed_sec, 3600)
         minutes, seconds = divmod(remainder, 60)
-        self.timer_label.set_text(f"{hours:02d}:{minutes:02d}:{seconds:02d}")
+        time_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        if self.audio_recorder and self.audio_recorder.is_paused():
+            self.timer_label.set_text(f"{time_str} (Pausa)")
+        else:
+            self.timer_label.set_text(time_str)
         return True
 
     def _update_ui(self, message: str, progress: float):

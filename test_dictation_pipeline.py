@@ -182,3 +182,71 @@ class TestDictationPreprocessor:
         assert "- diagnóstico" in result
         assert "- priorización" in result
         assert "\n\n" in result
+
+    def test_remove_repetition_loops(self):
+        from pipeline.dictation_preprocessor import DictationPreprocessor
+        raw = (
+            "Es un proceso de la respiración.\n"
+            "Es un proceso de la respiración.\n"
+            "Es un proceso de la respiración.\n"
+            "Gracias.\n"
+            "Gracias.\n"
+            "Diagnóstico de certeza.\n"
+            "Base de tratamiento.\n"
+            "Para el control de síntomas.\n"
+            "Base de tratamiento.\n"
+            "Para el control de síntomas.\n"
+        )
+        cleaned = DictationPreprocessor.remove_repetition_loops(raw)
+        lines = [l for l in cleaned.splitlines() if l.strip()]
+        assert lines == [
+            "Es un proceso de la respiración.",
+            "Diagnóstico de certeza.",
+            "Base de tratamiento.",
+            "Para el control de síntomas."
+        ]
+
+    def test_spoken_formatting_mayusculas(self):
+        from pipeline.dictation_preprocessor import DictationPreprocessor
+        # Prefix
+        res1 = DictationPreprocessor.process("En mayúsculas contraindicada, fisioterapia respiratoria.")
+        assert "CONTRAINDICADA" in res1
+        assert "en mayúsculas" not in res1.lower()
+
+        # Prefix with ponme
+        res2 = DictationPreprocessor.process("Ponme en letras mayúsculas órgano de la palabra.")
+        assert "ÓRGANO DE LA PALABRA" in res2
+
+        # Suffix
+        res3 = DictationPreprocessor.process("Ponme presión negativa en letras mayúsculas.")
+        assert "PRESIÓN NEGATIVA" in res3
+
+        # Suffix with comma
+        res4 = DictationPreprocessor.process("expulsión de sangre por la boca, boca en letras mayúsculas, siguiente")
+        assert "BOCA" in res4
+
+    def test_spoken_formatting_asteriscos(self):
+        from pipeline.dictation_preprocessor import DictationPreprocessor
+        # Double asterisks
+        res1 = DictationPreprocessor.process("por procesos, asterisco asterisco y gestión clínica")
+        assert "★★" in res1
+        assert "asterisco" not in res1.lower()
+
+        # Un par de asteriscos
+        res2 = DictationPreprocessor.process("vamos a poner aquí un par de asteriscos, que es clave")
+        assert "★★" in res2
+
+        # Single asterisk
+        res3 = DictationPreprocessor.process("método Hanlon, asteriscos, más utilizado")
+        assert "★" in res3
+
+        # Clinical medical term asterixis / asterisis must NOT be altered
+        res4 = DictationPreprocessor.process("El paciente presenta flapping o asterisis.")
+        assert "asterisis" in res4
+
+    def test_spoken_formatting_resaltado(self):
+        from pipeline.dictation_preprocessor import DictationPreprocessor
+        res = DictationPreprocessor.process("resalta este dato importante, siguiente tema")
+        assert "**este dato importante**" in res
+
+

@@ -15,6 +15,7 @@ for _sp in _venv_sites:
 
 import config
 from detector import ZoomDetector
+from display_manager import DisplayManager
 from video_recorder import VideoRecorder
 from audio_recorder import AudioRecorder
 from processor import MediaProcessor
@@ -35,6 +36,7 @@ class ZoomRecorderApp:
     
     def __init__(self):
         self.detector = ZoomDetector()
+        self.display_manager = DisplayManager()
         self.processor = MediaProcessor()
         self.video_recorder = None
         self.audio_recorder = None
@@ -59,7 +61,7 @@ class ZoomRecorderApp:
             self.stop_recording_and_process()
         sys.exit(0)
 
-    def start_recording(self):
+    def start_recording(self, area: tuple = None):
         """Starts both audio and video recording."""
         if self.is_recording:
             return True
@@ -74,8 +76,11 @@ class ZoomRecorderApp:
             self.video_recorder = VideoRecorder(filename_template=video_temp_template)
             self.audio_recorder = AudioRecorder(output_path=audio_temp_path)
             
+            if area is None:
+                area = self.display_manager.get_target_area(self.detector)
+
             # Start recording video first
-            if not self.video_recorder.start():
+            if not self.video_recorder.start(area=area):
                 logger.error("Failed to start video recording.")
                 return False
                 

@@ -52,7 +52,7 @@ class AudioTranscriber:
 
         cmd_norm = [
             "ffmpeg", "-y", "-i", self.audio_path,
-            "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
+            "-af", "silenceremove=start_periods=1:start_duration=0.1:start_threshold=-40dB:stop_periods=-1:stop_duration=0.5:stop_threshold=-40dB,loudnorm=I=-16:TP=-1.5:LRA=11",
             "-ac", "1", "-ar", "16000", "-codec:a", "pcm_s16le",
             normalized_wav
         ]
@@ -120,10 +120,11 @@ class AudioTranscriber:
         logger.info(f"Transcribing audio using remote Whisper API ({self.remote_endpoint})...")
         chunk_pattern = os.path.join(self.temp_dir, "audio_chunk_%03d.mp3")
 
+        segment_seconds = 300
         try:
             cmd = [
                 "ffmpeg", "-y", "-i", audio_source_path,
-                "-f", "segment", "-segment_time", "600",
+                "-f", "segment", "-segment_time", str(segment_seconds),
                 "-c:a", "libmp3lame", "-b:a", "64k", "-ac", "1",
                 chunk_pattern
             ]
@@ -139,7 +140,7 @@ class AudioTranscriber:
 
         transcribed_segments = []
         for idx, chunk_file in enumerate(chunk_files):
-            offset_sec = idx * 600
+            offset_sec = idx * segment_seconds
             msg = f"Transcribiendo chunk {idx+1}/{len(chunk_files)} con Whisper remoto..."
             logger.info(f"{msg} ({os.path.basename(chunk_file)}, Offset: {offset_sec}s)...")
             if status_callback:

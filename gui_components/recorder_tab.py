@@ -13,6 +13,7 @@ from gi.repository import Gtk, GLib, Pango
 
 import config
 from detector import ZoomDetector
+from display_manager import DisplayManager
 from video_recorder import VideoRecorder
 from audio_recorder import AudioRecorder
 from processor import MediaProcessor
@@ -34,6 +35,7 @@ class RecorderTab(Gtk.Box):
 
         # Core logic instances
         self.detector = ZoomDetector()
+        self.display_manager = DisplayManager()
         self.processor = MediaProcessor()
         self.video_recorder = None
         self.audio_recorder = None
@@ -115,7 +117,9 @@ class RecorderTab(Gtk.Box):
         if self.radio_manual.get_active():
             self.status_label.set_text("Starting manual recording...")
             if self.start_recording_session():
-                self.status_label.set_text("Recording full screen...")
+                mon = self.display_manager.get_target_monitor(self.detector)
+                mon_label = f" ({mon.name})" if mon else ""
+                self.status_label.set_text(f"Recording screen{mon_label}...")
         else:
             self.is_waiting_zoom = True
             self.status_label.set_text("Waiting for Zoom call...")
@@ -142,7 +146,9 @@ class RecorderTab(Gtk.Box):
             self.video_recorder = VideoRecorder(filename_template=video_temp_template)
             self.audio_recorder = AudioRecorder(output_path=audio_temp_path)
 
-            if not self.video_recorder.start():
+            area = self.display_manager.get_target_area(self.detector)
+
+            if not self.video_recorder.start(area=area):
                 self.reset_ui_state("Error: Video recorder failed")
                 return False
 
@@ -226,7 +232,9 @@ class RecorderTab(Gtk.Box):
         meeting_active = self.detector.is_meeting_active()
         if meeting_active and not self.is_recording:
             logger.info("Zoom call detected by GUI poll!")
-            self.status_label.set_text("Recording Zoom call...")
+            mon = self.display_manager.get_target_monitor(self.detector)
+            mon_label = f" ({mon.name})" if mon else ""
+            self.status_label.set_text(f"Recording Zoom call{mon_label}...")
             self.start_recording_session()
         elif not meeting_active and self.is_recording:
             logger.info("Zoom call ended. Stopping GUI recording...")

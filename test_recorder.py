@@ -109,6 +109,27 @@ class TestVideoRecorder:
             assert recorder._is_recording is False
             mock_iface.StopScreencast.assert_called_once()
 
+    @patch('dbus.SessionBus')
+    @patch('dbus.Boolean')
+    def test_video_recorder_start_with_area(self, mock_dbus_bool, mock_session_bus):
+        mock_bus_instance = MagicMock()
+        mock_session_bus.return_value = mock_bus_instance
+        mock_obj = MagicMock()
+        mock_bus_instance.get_object.return_value = mock_obj
+
+        mock_iface = MagicMock()
+        mock_iface.ScreencastArea.return_value = (True, "/home/user/Videos/test_area_vid.webm")
+        mock_iface.StopScreencast.return_value = True
+
+        with patch('dbus.Interface', return_value=mock_iface):
+            recorder = VideoRecorder(filename_template="test_area_vid")
+            success = recorder.start(area=(1920, 261, 1920, 1080))
+            assert success is True
+            assert recorder._is_recording is True
+            assert recorder.recorded_file == "/home/user/Videos/test_area_vid.webm"
+            mock_iface.ScreencastArea.assert_called_once()
+            mock_iface.Screencast.assert_not_called()
+
 
 # ==============================================================================
 # TESTS FOR MEDIAPROCESSOR (processor.py)

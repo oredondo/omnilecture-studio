@@ -79,9 +79,8 @@ class VoiceDictationNotesGenerator:
         logger.info(f"Transcribing dictation audio file directly with Whisper {mode_str}: {audio_path}")
 
         dictation_prompt = (
-            "Dictado estructurado para apuntes docentes y oposiciones EIR. "
-            "Comandos de puntuación y estructura: punto, coma, dos puntos, abro paréntesis, "
-            "cierro paréntesis, entre paréntesis, abro comillas, cierro comillas, subpunto, guión."
+            "Dictado estructurado de apuntes docentes y de estudio de enfermería para la oposición EIR. "
+            "Terminología médica, epidemiología, enfermedades infecciosas, farmacología y salud pública."
         )
         transcriber = AudioTranscriber(
             audio_path,

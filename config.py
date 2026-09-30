@@ -31,11 +31,17 @@ DRAW_CURSOR = True
 # If False, only the system internal audio (other meeting participants) will be recorded
 RECORD_MICROPHONE = False
 
+# Screen recording target on multi-monitor setups:
+# 'zoom_monitor' : Record only the monitor where Zoom is located (recommended)
+# 'primary_monitor' : Record only the primary monitor
+# 'all_monitors' : Record all monitors combined into a single wide video canvas
+RECORD_TARGET = "zoom_monitor"
+
 # Window names to ignore during Zoom active call detection
 # (Prevents capturing secondary control bars, clipboards, or empty main windows)
 ZOOM_IGNORED_TITLES = {
-    "zoom workplace", 
-    "zoom", 
+    "zoom workplace",
+    "zoom",
     "qt selection owner for zoom",
     "chromium clipboard"
 }

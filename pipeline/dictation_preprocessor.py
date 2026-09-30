@@ -4,11 +4,62 @@ class DictationPreprocessor:
     """Preprocesses raw speech-to-text dictation with deterministic rules for spoken punctuation and formatting commands."""
 
     @staticmethod
+    def remove_repetition_loops(text: str) -> str:
+        """Removes Whisper silence hallucination loops (identical repeated lines or repeating phrases)."""
+        if not text:
+            return ""
+        lines = text.splitlines()
+        hallucination_patterns = [
+            re.compile(r"^\s*gracias\.?\s*$", re.IGNORECASE),
+            re.compile(r"^\s*(?:subt[ií]tulos|transcripci[oó]n)\s+(?:por|realizados).*$", re.IGNORECASE),
+        ]
+        filtered = [l for l in lines if not any(p.match(l) for p in hallucination_patterns)]
+
+        # Collapse consecutive duplicate lines
+        deduped = []
+        for line in filtered:
+            stripped = line.strip()
+            if not stripped:
+                deduped.append(line)
+                continue
+            if deduped and deduped[-1].strip().lower() == stripped.lower():
+                continue
+            deduped.append(line)
+
+        # Collapse repeating patterns of length 1 to 4 lines
+        i = 0
+        final_lines = []
+        while i < len(deduped):
+            matched = False
+            for k in range(1, 5):
+                if i + 2 * k <= len(deduped):
+                    pattern = [l.strip().lower() for l in deduped[i : i + k]]
+                    if all(not p for p in pattern):
+                        continue
+                    repeats = 1
+                    while i + (repeats + 1) * k <= len(deduped):
+                        next_pattern = [l.strip().lower() for l in deduped[i + repeats * k : i + (repeats + 1) * k]]
+                        if next_pattern == pattern:
+                            repeats += 1
+                        else:
+                            break
+                    if repeats > 1:
+                        final_lines.extend(deduped[i : i + k])
+                        i += repeats * k
+                        matched = True
+                        break
+            if not matched:
+                final_lines.append(deduped[i])
+                i += 1
+
+        return "\n".join(final_lines)
+
+    @staticmethod
     def process(text: str) -> str:
         if not text:
             return ""
 
-        cleaned = text
+        cleaned = DictationPreprocessor.remove_repetition_loops(text)
 
         # 1. Spoken Punctuation: Dos puntos
         cleaned = re.sub(r'(?i)\b(?:dos\s+puntos)\b', ':', cleaned)
@@ -70,14 +121,52 @@ class DictationPreprocessor:
             cleaned
         )
 
-        # 10. Spoken Formatting: En negrita / Destacado
+        # 10. Spoken Formatting: Asteriscos (Double and Single)
         cleaned = re.sub(
-            r'(?i)\b(?:en\s+negrita|destacado)\s+([^,.;\n]+?)(?=[,.;\n]|$)',
+            r'(?i)\b(?:vamos\s+a\s+poner\s+(?:aqu[ií][, \t]+)?)?(?:un\s+par\s+de\s+|dos\s+)asteriscos?\b',
+            '★★',
+            cleaned
+        )
+        cleaned = re.sub(
+            r'(?i)\basteriscos?[, \t]*[,;]?[, \t]*asteriscos?\b',
+            '★★',
+            cleaned
+        )
+        cleaned = re.sub(
+            r'(?i)\b(?:vamos\s+a\s+poner\s+(?:aqu[ií][, \t]+)?|a\s+poner\s+(?:en\s+este\s+punto\s+(?:tambi[eé]n\s+)?)?|pon(?:me)?\s+(?:le\s+)?|con\s+)?asteriscos?\b',
+            '★',
+            cleaned
+        )
+
+        # 11. Spoken Formatting: Mayúsculas
+        cleaned = re.sub(r'(?i)\b(?:y\s+)?subrayado\b', '', cleaned)
+        # Suffix with 'ponme': 'ponme X en letras mayusculas'
+        cleaned = re.sub(
+            r'(?i)\bpon(?:me)?\s+([^,.;:\n]+?)\s+en\s+(?:letras\s+)?may[uú]sculas?\b',
+            lambda m: m.group(1).strip().upper(),
+            cleaned
+        )
+        # Prefix: 'ponme en letras mayúsculas X', 'en letras mayúsculas X', 'con mayúsculares X', 'por letras mayúsculas X'
+        cleaned = re.sub(
+            r'(?i)\b(?:pon(?:me)?\s+en\s+(?:letras\s+)?may[uú]sculas?|en\s+(?:letras\s+)?may[uú]sculas?|con\s+may[uú]sculares|por\s+letras\s+may[uú]sculas?)\b[ \t]*[:\-]?[ \t]*([^,.;\n]+?)(?=[,.;\n]|$)',
+            lambda m: m.group(1).strip().upper(),
+            cleaned
+        )
+        # Suffix: 'X, en letras mayúsculas' or 'X en letras mayúsculas' (excluding 'pon/ponme' as X)
+        cleaned = re.sub(
+            r'(?i)\b(?!(?:pon|ponme|poner|p[oó]nlo)\b)([^,.;:\n]+?)[, \t]+(?:p[oó]n(?:me)?(?:lo)?\s+)?en\s+(?:letras\s+)?may[uú]sculas?\b',
+            lambda m: m.group(1).strip().upper(),
+            cleaned
+        )
+
+        # 12. Spoken Formatting: En negrita / Destacado / Resalta
+        cleaned = re.sub(
+            r'(?i)\b(?:resalta(?:r)?|destaca(?:r)?|en\s+negrita|destacado)\s+([^,.;\n]+?)(?=[,.;\n]|$)',
             r'**\1**',
             cleaned
         )
 
-        # 11. Normalize spaces around punctuation
+        # 13. Normalize spaces around punctuation
         cleaned = re.sub(r'\s+:', ':', cleaned)
         cleaned = re.sub(r':(?!\s|\d)', ': ', cleaned)
         cleaned = re.sub(r'\(\s+', '(', cleaned)
