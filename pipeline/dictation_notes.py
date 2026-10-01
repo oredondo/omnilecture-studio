@@ -125,11 +125,43 @@ class VoiceDictationNotesGenerator:
         from pipeline.dictation_preprocessor import DictationPreprocessor
         preprocessed_text = DictationPreprocessor.process(dictation_text)
 
-        logger.info("Sending preprocessed dictation to LLM for structured notes generation...")
-        formatted_notes = self.llm_manager.process_node(
-            system_prompt=DICTATION_NOTES_PROMPT,
-            user_content=preprocessed_text
-        )
+        from pipeline.dictation_chunker import DictationChunker, DictationAssembler
+        chunks = DictationChunker.split(preprocessed_text)
+        num_chunks = len(chunks)
+        total_words = len(preprocessed_text.split())
+        logger.info(f"Dictation pre-node divided input into {num_chunks} chunk(s) (total words: {total_words}).")
+
+        chunk_notes_list = []
+        for i, chunk_content in enumerate(chunks):
+            if num_chunks > 1:
+                chunk_words = len(chunk_content.split())
+                logger.info(f"Processing dictation chunk {i+1}/{num_chunks} ({chunk_words} words)...")
+                if status_callback:
+                    progress = 0.50 + (i / num_chunks) * 0.38
+                    status_callback(f"Procesando bloque temático {i+1} de {num_chunks} con IA...", progress)
+
+                chunk_user_content = (
+                    f"--- BLOQUE TEMÁTICO {i+1} DE {num_chunks} DEL DICTADO ---\n\n"
+                    f"{chunk_content}"
+                )
+            else:
+                logger.info("Sending preprocessed dictation to LLM for structured notes generation...")
+                if status_callback:
+                    status_callback("Procesando dictado con IA (LangChain)...", 0.6)
+                chunk_user_content = preprocessed_text
+
+            formatted_chunk = self.llm_manager.process_node(
+                system_prompt=DICTATION_NOTES_PROMPT,
+                user_content=chunk_user_content
+            )
+            chunk_notes_list.append(formatted_chunk)
+
+        if num_chunks > 1:
+            if status_callback:
+                status_callback("Ensamblando y consolidando apuntes temáticos...", 0.90)
+            formatted_notes = DictationAssembler.assemble(chunk_notes_list)
+        else:
+            formatted_notes = chunk_notes_list[0]
 
         md_filename = f"{timestamp}_dictado.md"
         md_path = os.path.join(self.output_dir, md_filename)

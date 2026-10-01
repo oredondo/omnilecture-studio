@@ -76,7 +76,7 @@ class AudioTranscriber:
                 except OSError:
                     pass
 
-    def _send_remote_chunk(self, chunk_path: str, max_retries: int = 3) -> str:
+    def _send_remote_chunk(self, chunk_path: str, max_retries: int = 3, prompt: str = None) -> str:
         """Sends an audio file chunk to the remote Whisper endpoint with retries."""
         if not self.api_key:
             raise ValueError("API_KEY no encontrada en pipeline_config.py para usar Whisper Remoto.")
@@ -85,8 +85,9 @@ class AudioTranscriber:
         file_ext = os.path.splitext(chunk_path)[1].lower()
         content_type = "audio/mpeg" if file_ext == ".mp3" else "audio/wav"
         data = {"language": "es"}
-        if self.initial_prompt:
-            data["prompt"] = self.initial_prompt
+        prompt_to_send = prompt if prompt is not None else self.initial_prompt
+        if prompt_to_send:
+            data["prompt"] = prompt_to_send
 
         last_error = None
         for attempt in range(1, max_retries + 1):
@@ -139,6 +140,7 @@ class AudioTranscriber:
         logger.info(f"Audio split into {len(chunk_files)} chunks for remote Whisper processing.")
 
         transcribed_segments = []
+        last_context_tail = ""
         for idx, chunk_file in enumerate(chunk_files):
             offset_sec = idx * segment_seconds
             msg = f"Transcribiendo chunk {idx+1}/{len(chunk_files)} con Whisper remoto..."
@@ -146,11 +148,21 @@ class AudioTranscriber:
             if status_callback:
                 status_callback(msg, 0.20 + (idx / len(chunk_files)) * 0.20)
 
-            chunk_text = self._send_remote_chunk(chunk_file)
+            chunk_prompt = self.initial_prompt or ""
+            if last_context_tail:
+                chunk_prompt = f"{chunk_prompt} ... Continuación: {last_context_tail}".strip()[-450:]
+
+            chunk_text = self._send_remote_chunk(chunk_file, prompt=chunk_prompt)
             if chunk_text:
                 lines = [line_item.strip() for line_item in chunk_text.splitlines() if line_item.strip()]
                 if not lines and chunk_text.strip():
                     lines = [chunk_text.strip()]
+
+                clean_text = " ".join(lines)
+                if len(clean_text) > 150:
+                    last_context_tail = clean_text[-150:]
+                else:
+                    last_context_tail = clean_text
 
                 if self.include_timestamps:
                     minutes, seconds = divmod(offset_sec, 60)
@@ -200,6 +212,7 @@ class AudioTranscriber:
         logger.info(f"Audio split successfully into {len(chunk_files)} chunks for local Whisper.")
 
         transcribed_segments = []
+        last_context_tail = ""
 
         for idx, chunk_file in enumerate(chunk_files):
             offset_sec = idx * 1800
@@ -208,21 +221,27 @@ class AudioTranscriber:
             if status_callback:
                 status_callback(msg, 0.20 + (idx / len(chunk_files)) * 0.20)
 
+            chunk_prompt = self.initial_prompt or ""
+            if last_context_tail:
+                chunk_prompt = f"{chunk_prompt} ... Continuación: {last_context_tail}".strip()[-450:]
+
             segments, info = model.transcribe(
                 chunk_file,
                 beam_size=5,
                 language="es",
-                initial_prompt=self.initial_prompt,
+                initial_prompt=chunk_prompt,
                 vad_filter=True
             )
 
             if idx == 0:
                 logger.info(f"Detected language: {info.language} with probability {info.language_probability:.2f}")
 
+            chunk_lines = []
             for segment in segments:
                 text_clean = segment.text.strip()
                 if not text_clean:
                     continue
+                chunk_lines.append(text_clean)
                 if self.include_timestamps:
                     current_sec = int(segment.start) + offset_sec
                     minutes, seconds = divmod(current_sec, 60)
@@ -231,6 +250,13 @@ class AudioTranscriber:
                 else:
                     line = f"{text_clean}\n"
                 transcribed_segments.append(line)
+
+            if chunk_lines:
+                clean_text = " ".join(chunk_lines)
+                if len(clean_text) > 150:
+                    last_context_tail = clean_text[-150:]
+                else:
+                    last_context_tail = clean_text
 
             try:
                 os.remove(chunk_file)

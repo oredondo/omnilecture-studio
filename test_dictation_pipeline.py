@@ -250,3 +250,114 @@ class TestDictationPreprocessor:
         assert "**este dato importante**" in res
 
 
+class TestDictationChunkerAndAssembler:
+
+    def test_chunker_short_text_single_chunk(self):
+        from pipeline.dictation_chunker import DictationChunker
+        short_text = "Dictado breve sobre la fiebre amarilla y el dengue."
+        chunks = DictationChunker.split(short_text)
+        assert len(chunks) == 1
+        assert chunks[0] == short_text
+
+    def test_chunker_long_text_transition_cue(self):
+        from pipeline.dictation_chunker import DictationChunker
+        para1 = "Tema uno sobre epidemiología y zoonosis de la peste. " * 100
+        cue = "Siguiente tema pasamos a las rickettsias y el tifus exantémico. "
+        para2 = "Detalles sobre rickettsias y garrapatas de la fiebre botonosa. " * 100
+        long_text = f"{para1}\n\n{cue}{para2}"
+
+        chunks = DictationChunker.split(long_text)
+        assert len(chunks) == 2
+        assert chunks[1].startswith("Siguiente tema")
+        assert "rickettsias" in chunks[1]
+
+    def test_chunker_long_text_paragraph_break(self):
+        from pipeline.dictation_chunker import DictationChunker
+        para1 = "Primer bloque de apuntes clínicos sobre metodología. " * 110
+        para2 = "Segundo bloque de apuntes clínicos sobre enfermería comunitaria. " * 110
+        long_text = f"{para1}\n\n{para2}"
+
+        chunks = DictationChunker.split(long_text)
+        assert len(chunks) == 2
+        assert "comunitaria" in chunks[1]
+
+    def test_assembler_single_chunk(self):
+        from pipeline.dictation_chunker import DictationAssembler
+        single = "---\ntitle: Apuntes\n---\n\n## Tema 1\n* Detalle"
+        assert DictationAssembler.assemble([single]) == single
+
+    def test_assembler_multiple_chunks_unifies_yaml_and_questions(self):
+        from pipeline.dictation_chunker import DictationAssembler
+        c1 = (
+            "---\ntitle: Dictado Completo\ndate: 2026-09-30\n---\n\n"
+            "## Tema 1: Zoonosis\n* Agente: Yersinia pestis\n\n"
+            "## Cuestionario de Autoevaluación\n"
+            "> [!question]- ¿Cuál es el vector de la peste?\n"
+            "> **Respuesta Clave**: Pulga Xenopsylla cheopis."
+        )
+        c2 = (
+            "---\ntitle: Parte 2\n---\n\n"
+            "## Tema 2: Rickettsias\n* Agente: Rickettsia prowazekii\n\n"
+            "## Cuestionario de Autoevaluación\n"
+            "> [!question]- ¿Cuál es el vector del tifus exantémico?\n"
+            "> **Respuesta Clave**: Piojos."
+        )
+
+        assembled = DictationAssembler.assemble([c1, c2])
+        assert assembled.count("---") == 2
+        assert assembled.count("## Cuestionario de Autoevaluación") == 1
+        assert "title: Dictado Completo" in assembled
+        assert "title: Parte 2" not in assembled
+        assert "## Tema 1: Zoonosis" in assembled
+        assert "## Tema 2: Rickettsias" in assembled
+        assert "¿Cuál es el vector de la peste?" in assembled
+        assert "¿Cuál es el vector del tifus exantémico?" in assembled
+
+    @patch('pipeline.dictation_notes.LLMManager')
+    def test_generate_notes_from_long_text_multi_chunk(self, mock_llm_cls):
+        from pipeline.dictation_notes import VoiceDictationNotesGenerator
+
+        mock_llm_instance = MagicMock()
+        # Mock chunk 1 and chunk 2 responses
+        mock_llm_instance.process_node.side_effect = [
+            "---\ntitle: Dictado EIR\n---\n\n## Bloque 1\n* Concepto 1\n\n## Cuestionario de Autoevaluación\n> [!question]- P1?",
+            "---\ntitle: Dictado EIR Parte 2\n---\n\n## Bloque 2\n* Concepto 2\n\n## Cuestionario de Autoevaluación\n> [!question]- P2?"
+        ]
+        mock_llm_cls.return_value = mock_llm_instance
+
+        temp_dir = tempfile.mkdtemp()
+        generator = VoiceDictationNotesGenerator(output_dir=temp_dir)
+        generator.llm_manager = mock_llm_instance
+
+        # Create a text with ~1700 words to trigger exactly 2 chunks
+        long_dictation = (
+            ("Tema uno sobre el método Hanlon y priorización de problemas de salud. " * 80) +
+            "\n\nSiguiente tema pasamos a la matriz DAFO y la planificación estratégica. " +
+            ("Detalles sobre fortalezas, debilidades, oportunidades y amenazas. " * 100)
+        )
+
+        callback_msgs = []
+        def status_cb(msg, progress):
+            callback_msgs.append((msg, progress))
+
+        md_path, raw_path = generator.generate_notes_from_text(long_dictation, status_callback=status_cb)
+
+        assert os.path.exists(md_path)
+        assert os.path.exists(raw_path)
+        assert mock_llm_instance.process_node.call_count == 2
+
+        with open(md_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        assert "## Bloque 1" in content
+        assert "## Bloque 2" in content
+        assert content.count("## Cuestionario de Autoevaluación") == 1
+        assert "P1?" in content
+        assert "P2?" in content
+
+        # Check status callback received chunk notifications
+        chunk_updates = [m for m, p in callback_msgs if "bloque temático" in m.lower()]
+        assert len(chunk_updates) >= 2
+
+
+
