@@ -30,6 +30,7 @@ from gui_components.recorder_tab import RecorderTab
 from gui_components.eir_notes_tab import EIRNotesTab
 from gui_components.handwritten_tab import HandwrittenTab
 from gui_components.dictation_tab import DictationTab
+from gui_components.pdf_compiler_tab import PDFCompilerTab
 
 # Setup Logging
 logging.basicConfig(
@@ -105,6 +106,10 @@ class ZoomRecorderGUI(Gtk.Window):
         # Tab 4: Dictado por Voz
         self.dictation_tab = DictationTab(parent_window=self)
         self.notebook.append_page(self.dictation_tab, Gtk.Label(label="Dictado"))
+
+        # Tab 5: Compilador PDF
+        self.pdf_compiler_tab = PDFCompilerTab(parent_window=self)
+        self.notebook.append_page(self.pdf_compiler_tab, Gtk.Label(label="Compilador PDF"))
 
     def _update_whisper_toggle_label(self, is_remote: bool):
         if is_remote:

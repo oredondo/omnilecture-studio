@@ -80,7 +80,10 @@ class VoiceDictationNotesGenerator:
 
         dictation_prompt = (
             "Dictado estructurado de apuntes docentes y de estudio de enfermería para la oposición EIR. "
-            "Terminología médica, epidemiología, enfermedades infecciosas, farmacología y salud pública."
+            "Terminología médica, epidemiología, enfermedades infecciosas, farmacología, salud pública, "
+            "ciencias psicosociales (memoria, pensamiento, lenguaje, inteligencia, modelos de Atkinson, "
+            "Shiffrin, Tulving, Ebbinghaus, Brown-Peterson, Spearman, Cattell, Horn, Sternberg, Salovey, "
+            "Mayer, Piaget, Skinner, Chomsky, Vygotsky, Wechsler, Jane Mercer, SEMPA) y endocrinología."
         )
         transcriber = AudioTranscriber(
             audio_path,

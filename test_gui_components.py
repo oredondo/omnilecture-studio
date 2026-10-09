@@ -22,6 +22,7 @@ class TestGUIComponentsImports:
         from gui_components.eir_notes_tab import EIRNotesTab
         from gui_components.handwritten_tab import HandwrittenTab
         from gui_components.dictation_tab import DictationTab
+        from gui_components.pdf_compiler_tab import PDFCompilerTab
 
         assert hasattr(DialogUtils, "show_info")
         assert hasattr(DialogUtils, "show_error")
@@ -33,13 +34,15 @@ class TestGUIComponentsImports:
         assert hasattr(DictationTab, "on_stop_clicked")
         assert hasattr(DictationTab, "set_remote_whisper")
         assert hasattr(EIRNotesTab, "set_remote_whisper")
+        assert hasattr(PDFCompilerTab, "on_compile_clicked")
 
     @patch('gi.repository.Gtk.Window')
     def test_main_gui_class(self, mock_window):
         with patch('gui_components.recorder_tab.RecorderTab'), \
              patch('gui_components.eir_notes_tab.EIRNotesTab'), \
              patch('gui_components.handwritten_tab.HandwrittenTab'), \
-             patch('gui_components.dictation_tab.DictationTab'):
+             patch('gui_components.dictation_tab.DictationTab'), \
+             patch('gui_components.pdf_compiler_tab.PDFCompilerTab'):
             from gui import ZoomRecorderGUI
             app = ZoomRecorderGUI()
             assert app is not None
