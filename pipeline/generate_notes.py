@@ -276,15 +276,9 @@ class NotesGenerator:
         shutil.copy(ocr_file, raw_ocr_path)
         shutil.copy(trans_file, raw_trans_path)
 
-        # Export .docx versions for study notes, raw OCR, and class transcription
-        from pipeline.docx_exporter import DocxExporter
-        DocxExporter.convert_file(notes_output_path)
-        DocxExporter.convert_file(raw_ocr_path)
-        DocxExporter.convert_file(raw_trans_path)
-
-        logger.info(f"Combined study notes saved to: {notes_output_path} and .docx equivalent")
+        logger.info(f"Combined study notes saved to: {notes_output_path}")
         logger.info(f"Combined Anki CSV cards saved to: {anki_output_path}")
-        logger.info(f"Raw OCR and transcription files saved to: {bruto_dir} (.txt and .docx)")
+        logger.info(f"Raw OCR and transcription files saved to: {bruto_dir}")
         
         # Step 7: Cleanup temporary files
         try:

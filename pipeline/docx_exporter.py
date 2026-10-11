@@ -20,12 +20,21 @@ class DocxExporter:
         lines = md_content.splitlines()
         in_code_block = False
         code_block_lines = []
+        table_lines = []
+
+        def flush_table():
+            nonlocal table_lines
+            if not table_lines:
+                return
+            DocxExporter._add_table(doc, table_lines)
+            table_lines = []
 
         for line in lines:
             stripped = line.strip()
 
             # Handle Code Blocks
             if stripped.startswith("```"):
+                flush_table()
                 if in_code_block:
                     code_text = "\n".join(code_block_lines)
                     p = doc.add_paragraph()
@@ -44,6 +53,13 @@ class DocxExporter:
             if in_code_block:
                 code_block_lines.append(line)
                 continue
+
+            # Handle Markdown Tables
+            if stripped.startswith("|") and stripped.endswith("|"):
+                table_lines.append(stripped)
+                continue
+            elif table_lines:
+                flush_table()
 
             # Empty lines
             if not stripped:
@@ -77,6 +93,9 @@ class DocxExporter:
             else:
                 p = doc.add_paragraph()
                 DocxExporter._add_formatted_text(p, stripped)
+
+        if table_lines:
+            flush_table()
 
         doc.save(output_docx_path)
         logger.info(f"Generated DOCX document: {output_docx_path}")
@@ -118,3 +137,48 @@ class DocxExporter:
                 run.font.size = Pt(9.5)
             else:
                 paragraph.add_run(token)
+
+    @staticmethod
+    def _add_table(doc: Document, table_lines: list[str]):
+        """Parses markdown table lines and inserts a formatted Word table into doc."""
+        parsed_rows = []
+        for tl in table_lines:
+            stripped_tl = tl.strip()
+            # Skip delimiter/separator line (e.g., | :--- | :--- |)
+            if re.match(r"^\|(\s*:?-+:?\s*\|)+$", stripped_tl):
+                continue
+            raw_cells = [c.strip() for c in stripped_tl.strip("|").split("|")]
+            parsed_rows.append(raw_cells)
+
+        if not parsed_rows:
+            return
+
+        max_cols = max(len(r) for r in parsed_rows)
+        if max_cols == 0:
+            return
+
+        table = doc.add_table(rows=len(parsed_rows), cols=max_cols)
+        table.style = "Table Grid"
+
+        for r_idx, row_data in enumerate(parsed_rows):
+            # Pad short rows
+            while len(row_data) < max_cols:
+                row_data.append("")
+            for c_idx, cell_value in enumerate(row_data):
+                cell = table.cell(r_idx, c_idx)
+                # Split multiline breaks inside cell (<br> or <br/>)
+                sublines = re.split(r"<br\s*/?>", cell_value, flags=re.IGNORECASE)
+                for s_idx, subline in enumerate(sublines):
+                    clean_line = subline.strip()
+                    p = cell.paragraphs[0] if s_idx == 0 else cell.add_paragraph()
+                    if r_idx == 0:
+                        # Make header bold if not already
+                        if not (clean_line.startswith("**") and clean_line.endswith("**")):
+                            DocxExporter._add_formatted_text(p, f"**{clean_line}**")
+                        else:
+                            DocxExporter._add_formatted_text(p, clean_line)
+                    else:
+                        DocxExporter._add_formatted_text(p, clean_line)
+
+        # Add empty paragraph spacing after table
+        doc.add_paragraph()

@@ -132,7 +132,14 @@ DIRECTRICES CRÍTICAS DE TRANSCRIPCIÓN Y MAQUETACIÓN
    • AUTOCORRECCIONES DEL DICTADOR: Cuando el hablante se corrija sobre la marcha (ej. 'estrictos, no, quita estrictos, escritos', 'de izquierda a derecha, no perdón, de derecha a izquierda'), ATENDER A LA CORRECCIÓN y descartar la palabra retractada. NUNCA transcribas ambos ni inventes definiciones para lo que se mandó quitar.
    • NUNCA inventes teoría externa, definiciones de relleno ni disclaimers al final.
 
-2. CUMPLIMIENTO ESTRICTO DE ÓRDENES DE FORMATO HABLADAS (MAYÚSCULAS, RESALTADO Y ASTERISCOS):
+2. INTEGRACIÓN COMPLETA, ORDEN SECUENCIAL Y RESPETO AL ESQUEMA DEL DICTADO (CRÍTICO):
+   • Fidelidad al esquema inicial: Si el dictador comienza presentando una lista o esquema de temas (ej. 'vamos a ver 1. Bullying, 2. Mobbing...'), estructura el documento siguiendo rigurosamente ese orden correlativo de 1 a N.
+   • Prohibido fragmentar temas o duplicar títulos de nivel superior (#): Todo el contenido debe integrarse en un flujo único y coherente.
+   • Prohibido inventar notas de 'no desarrollo': Si un bloque de procesamiento termina antes de completar todos los temas de la lista inicial, NUNCA escribas notas o disclaimers diciendo que los temas restantes 'no se desarrollaron en el dictado'. Desarrolla únicamente los temas presentes en tu bloque.
+   • Respeto absoluto a modificaciones manuales del usuario: Si se refina o revisa un documento previamente editado por el usuario, prioriza y mantén intactas sus correcciones manuales (autores, matices o términos).
+   • Cero invención externa: Queda TERMINANTEMENTE PROHIBIDO añadir cualquier concepto, teoría, clasificación o dato que no haya sido expresamente dictado.
+
+3. CUMPLIMIENTO ESTRICTO DE ÓRDENES DE FORMATO HABLADAS (MAYÚSCULAS, RESALTADO Y ASTERISCOS):
    ¡ATENCIÓN MÁXIMA! Cuando el usuario dé una orden de formateo hablada, NO la ignores ni la borres sin aplicar el cambio. APLICA EL FORMATO SOLICITADO AL TÉRMINO O CONCEPTO y elimina la frase del comando oral:
 
    a) MAYÚSCULAS (CUMPLIMIENTO OBLIGATORIO Y ESTRICTO):
@@ -171,7 +178,7 @@ DIRECTRICES CRÍTICAS DE TRANSCRIPCIÓN Y MAQUETACIÓN
    f) DELETREO FONÉTICO (NOMBRES PROPIOS, AUTORES Y SIGLAS):
       - Cuando el hablante deletree una palabra letra por letra (ej. 'B-R-O-W-N', 'P-E-T-E-R-S-O-N', 'E-B-B-I-N-G-H-A-U-S', 'S-E-M-P-A', 'M-A-L', 'T-U-L-V-I-N-G', 'S-K-I-N-N-E-R', 'V-I-G-O-T-S-K-I', 'C-H-O-M-S-K-Y', 'S-P-E-A-R-M-A-N', 'S-T-E-R-N-B-E-R-G', 'W-E-C-H-S-L-E-R', 'M-E-R-C-E-R', 'A-T-K-I-N-S-O-N', 'S-H-I-F-F-R-I-N', etc.), reconstruye el nombre, sigla o autor exacto y dale máxima prioridad. El deletreo es la señal explícita del dictador de que se trata de un concepto crítico de examen.
 
-3. CORRECCIÓN FONÉTICA Y DE TERMINOLOGÍA DOCENTE (EIR / CIENCIAS PSICOSOCIALES, ENDOCRINOLOGÍA, INFECCIOSAS Y GESTIÓN):
+4. CORRECCIÓN FONÉTICA Y DE TERMINOLOGÍA DOCENTE (EIR / CIENCIAS PSICOSOCIALES, ENDOCRINOLOGÍA, INFECCIOSAS Y GESTIÓN):
    • POLÍTICA DE COBERTURA ESTRICTA (CERO OMISIÓN DE AUTORES, PATOLOGÍAS Y TEORÍAS):
      Está TERMINANTEMENTE PROHIBIDO omitir cualquier enfermedad, autor, teoría, modelo, fase, eje, mecanismo o ejemplo clínico/docente que haya sido dictado. Si el hablante menciona un autor (ej. Brown-Peterson, Ebbinghaus, Tulving, Atkinson, Shiffrin, Spearman, Cattell, Horn, Sternberg, Salovey, Mayer, Goleman, Galton, Binet, Terman, Stern, Wechsler, Jane Mercer, Piaget, Skinner, Vygotsky, Chomsky, etc.), una patología (ej. Hiperparatiroidismo, Hipoparatiroidismo, Cetoacidosis, Peste, Fiebre amarilla, Dengue, Malaria, etc.) o una fase/clasificación clínica, es OBLIGATORIO incluirla en los apuntes con todos los detalles aportados en el dictado. ¡NUNCA resumas tanto que elimines autores o teorías intermedias ni dejes un tema suelto!
 
@@ -321,7 +328,7 @@ DIRECTRICES CRÍTICAS DE TRANSCRIPCIÓN Y MAQUETACIÓN
      - Evaluación económica: ACB (Coste-Beneficio en €), ACE (Coste-Efectividad en unidades clínicas), ACU (Coste-Utilidad en AVAC / QALY), AMC (Minimización de costes).
      - Rendimiento: Eficacia (óptimas/ensayo), Efectividad (práctica real), Eficiencia (coste-beneficio), Productividad (cantidad/recursos).
 
-4. ESTRUCTURA Y FORMATO:
+5. ESTRUCTURA Y FORMATO:
    • # Título Principal del Tema
    • ## Secciones Principales
    • ### Subapartados

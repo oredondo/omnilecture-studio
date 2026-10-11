@@ -75,6 +75,14 @@ class TestVoiceDictationNotesGenerator:
         assert "32k" in cmd
         assert "22050" in cmd
 
+    @patch('subprocess.run')
+    def test_compress_to_ultra_light_mp3_default_naming(self, mock_subproc):
+        temp_dir = tempfile.mkdtemp()
+        generator = VoiceDictationNotesGenerator(output_dir=temp_dir)
+        out_mp3 = generator.compress_to_ultra_light_mp3("20261010_120000_dictado_raw.wav")
+        expected_path = os.path.join(generator.raw_dir, "20261010_120000_dictado_min.mp3")
+        assert out_mp3 == expected_path
+
     @patch('gi.repository.Gst.init')
     @patch('gi.repository.Gst.parse_launch')
     @patch('audio_recorder.AudioRecorder._discover_devices')
@@ -114,6 +122,34 @@ class TestVoiceDictationNotesGenerator:
         assert backup_mp3 == os.path.join(temp_dir, "backup.mp3")
         mock_transcribe.assert_called_once_with("input.wav")
         mock_compress.assert_called_once_with("input.wav")
+
+    @patch('pipeline.dictation_notes.VoiceDictationNotesGenerator.compress_to_ultra_light_mp3')
+    @patch('pipeline.dictation_notes.VoiceDictationNotesGenerator.transcribe_audio_file')
+    @patch('pipeline.dictation_notes.LLMManager')
+    def test_run_from_audio_deletes_raw_wav(self, mock_llm_cls, mock_transcribe, mock_compress):
+        mock_transcribe.return_value = "Texto dictado para prueba de borrado"
+        mock_llm = MagicMock()
+        mock_llm.process_node.return_value = "# Apuntes"
+        mock_llm_cls.return_value = mock_llm
+
+        temp_dir = tempfile.mkdtemp()
+        dummy_wav = os.path.join(temp_dir, "dictado_raw.wav")
+        with open(dummy_wav, "wb") as f:
+            f.write(b"RIFF dummy wav")
+
+        dummy_mp3 = os.path.join(temp_dir, "dictado_min.mp3")
+        with open(dummy_mp3, "wb") as f:
+            f.write(b"dummy mp3 data")
+
+        mock_compress.return_value = dummy_mp3
+
+        generator = VoiceDictationNotesGenerator(output_dir=temp_dir)
+        generator.llm_manager = mock_llm
+
+        md_path, raw_path, backup_mp3 = generator.run_from_audio(dummy_wav)
+
+        assert os.path.exists(dummy_mp3)
+        assert not os.path.exists(dummy_wav)
 
     @patch('pipeline.dictation_notes.LLMManager')
     def test_dictation_generator_uses_temperature_zero(self, mock_llm_cls):

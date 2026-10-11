@@ -53,6 +53,7 @@ class PDFRenderer:
                 "--disable-gpu",
                 "--no-sandbox",
                 "--disable-dev-shm-usage",
+                f"--user-data-dir={os.path.join(temp_dir, 'chrome_profile')}",
                 "--print-to-pdf-no-header",
                 f"--print-to-pdf={output_pdf_path}",
                 temp_html_path
