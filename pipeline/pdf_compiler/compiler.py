@@ -18,6 +18,7 @@ def compile_markdowns_to_pdf(
     force_orientation: Optional[str] = None,
     force_columns: Optional[int] = None,
     font_size_mode: Optional[str] = None,
+    organize: bool = False,
     status_callback: Optional[Callable[[str, float], None]] = None
 ) -> Tuple[str, LayoutStrategy]:
     """Compiles one or more Markdown files into an ultra-compact, space-optimized PDF.
@@ -30,6 +31,7 @@ def compile_markdowns_to_pdf(
         force_orientation: Optional override: 'portrait' or 'landscape'.
         force_columns: Optional override: 1 or 2 columns.
         font_size_mode: Optional font size preset: 'normal', 'small' (pequeña), or 'ultra_small' (super pequeña).
+        organize: If False, skips the LLM content-organization step (plain merge, much faster).
         status_callback: Optional progress reporter callback (message: str, progress: float).
 
     Returns:
@@ -55,13 +57,19 @@ def compile_markdowns_to_pdf(
     logger.info(f"Starting PDF compilation for {len(valid_paths)} Markdown file(s)...")
     if status_callback:
         status_callback(
-            f"Analizando {len(valid_paths)} documento(s) con LangGraph y Pydantic...",
-            0.15
+            f"Preparando {len(valid_paths)} documento(s)...",
+            0.03
         )
 
     # 2. Run LangGraph layout analysis
     graph = MDLayoutOptimizerGraph()
-    state = graph.run(md_paths=valid_paths)
+
+    def graph_progress(message: str, fraction: float):
+        # Graph occupies 3%..70% of the overall progress bar
+        if status_callback:
+            status_callback(message, 0.03 + 0.67 * fraction)
+
+    state = graph.run(md_paths=valid_paths, progress_callback=graph_progress, organize=organize)
 
     strategy_dict = state.get("layout_strategy", {})
     strategy = LayoutStrategy(**strategy_dict)
@@ -83,7 +91,7 @@ def compile_markdowns_to_pdf(
     if status_callback:
         status_callback(
             f"Estrategia ({strategy.orientation.upper()}, {strategy.columns} col). Generando HTML maquetado...",
-            0.50
+            0.75
         )
 
     # 4. Generate High-Density HTML
@@ -99,6 +107,10 @@ def compile_markdowns_to_pdf(
         else:
             pdf_filename = f"{first_base}_optimizado.pdf"
 
+        from datetime import datetime
+        stem, ext = os.path.splitext(pdf_filename)
+        pdf_filename = f"{stem}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{ext}"
+
         target_dir = getattr(config, "OUTPUT_DIR", None) or os.path.dirname(valid_paths[0])
         pdf_dir = os.path.join(target_dir, "apuntes_pdf")
         os.makedirs(pdf_dir, exist_ok=True)
@@ -106,7 +118,7 @@ def compile_markdowns_to_pdf(
 
     # 6. Render PDF
     if status_callback:
-        status_callback("Renderizando PDF de alta densidad con Chromium...", 0.80)
+        status_callback("Renderizando PDF de alta densidad con Chromium...", 0.85)
 
     renderer = PDFRenderer()
     final_pdf_path = renderer.render_to_pdf(html_content, output_pdf_path)

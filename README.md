@@ -24,10 +24,10 @@ Build a multi-purpose automation utility tailored for Linux desktop environments
    * **Faithful Graphic Rendering**: Translates handwritten layouts into Markdown with headings, bullet lists, Markdown comparison tables, LaTeX mathematical formulas ($...$), and Mermaid diagrams (```mermaid ...) for hand-drawn schemas.
 
 4. **Voice Dictation Notes Pipeline**:
-   * **Speech-to-Text Transcription**: Transcribes student voice dictation audio files (`.wav`, `.mp3`, `.flac`, `.ogg`) directly using local offline Whisper IA (`faster-whisper`).
+   * **Speech-to-Text Transcription**: Transcribes student voice dictation audio files (`.wav`, `.mp3`, `.flac`, `.ogg`) directly using remote Leria Whisper API or local offline Whisper IA (`faster-whisper`).
    * **Noise & Silence Filtering**: Automatically filters out ambient background noise (FFT denoiser `afftdn` + speech bandpass 100Hz-4000Hz) and strips pauses (`silenceremove`).
    * **Ultra-Light MP3 Encoding**: Compresses speech audio down to mono 32 kbps (22.05 kHz) for minimal file size.
-   * **AI Formatting & Structuring**: Cleans phonetic errors/hesitation words and structures the dictation into formatted Markdown study notes.
+   * **AI Formatting & Structuring**: Cleans phonetic errors, spoken punctuation, and hesitation words; normalizes and reconstructs spelled-out authors/acronyms without leaving literal letter-by-letter hyphens; generates a mandatory initial simple outline (`## Esquema General de Contenidos`); and formats requested/comparative Markdown tables with hierarchical points and subpoints (`<br>• ` / `<br>  - `) inside columns while strictly preventing table content duplication elsewhere in the notes.
 
 ---
 

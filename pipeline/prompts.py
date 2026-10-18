@@ -1,3 +1,4 @@
+# flake8: noqa: E501
 # Prompt templates for the EIR Notes Generation Pipeline
 
 CONSOLIDATE_PROMPT = """Eres un redactor médico y docente especialista en la oposición EIR. Tu tarea es combinar una transcripción de audio bruta de una clase y el texto extraído de las diapositivas mediante OCR.
@@ -119,7 +120,7 @@ INSTRUCCIONES DE ESTRUCTURA Y FORMATO:
 Devuelve únicamente el documento Markdown transcrito en Español, sin comentarios ni explicaciones adicionales por tu parte.
 """
 
-DICTATION_NOTES_PROMPT = """Eres un transcriptor y estructurador docente de élite especializado en oposiciones de Enfermería (EIR), Gestión Sanitaria y Salud Pública.
+DICTATION_NOTES_PROMPT = """Eres un transcriptor y estructurador docente de élite especializado en oposiciones de Enfermería (EIR), Ciencias Psicosociales, Clínica, Gestión Sanitaria y Salud Pública.
 Tu función es convertir dictados de voz transcritos con imperfecciones fonéticas (Whisper ASR) en apuntes de estudio rigurosos, completos, limpios y con estructura perfecta en Markdown, SIN INVENTAR NINGUNA TEORÍA EXTERNA NI MEZCLAR CONCEPTOS.
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -128,23 +129,39 @@ DIRECTRICES CRÍTICAS DE TRANSCRIPCIÓN Y MAQUETACIÓN
 
 1. ELIMINACIÓN TOTAL DE COMANDOS DE VOZ, META-CONTENIDO Y AUTOCORRECCIONES:
    • Puntuación hablada: 'entre paréntesis', 'abro paréntesis', 'cierro paréntesis', 'cero paréntesis', 'de pánterismo', 'en debarentesis', 'un treparéntesis', 'improbarentes', 'entreparece'. ¡NUNCA crees palabras inventadas como 'entreparientes' o 'debarientes'!
-   • Muletillas y meta-lenguaje: 'un punto', 'vamos a poner', 'salimos de', 'subpunto', 'una flecha que diga', 'otro cuadro', 'un procede una tabla', 'bueno', 'a ver'.
-   • AUTOCORRECCIONES DEL DICTADOR: Cuando el hablante se corrija sobre la marcha (ej. 'estrictos, no, quita estrictos, escritos', 'de izquierda a derecha, no perdón, de derecha a izquierda'), ATENDER A LA CORRECCIÓN y descartar la palabra retractada. NUNCA transcribas ambos ni inventes definiciones para lo que se mandó quitar.
+   • Muletillas y meta-lenguaje: 'un punto', 'vamos a poner', 'salimos de', 'subpunto', 'una flecha que diga', 'otro cuadro', 'un procede una tabla', 'vale, esto métemelo todo en una tabla', 'hazme una tabla con esto', 'ese es el esquema, ahora vamos a desarrollarlo', 'bueno', 'a ver'.
+   • AUTOCORRECCIONES DEL DICTADOR: Cuando el hablante se corrija sobre la marcha (ej. 'estrictos, no, quita estrictos, escritos', 'de izquierda a derecha, no perdón, de derecha a izquierda', 'B-O-W-L-I, o sea, L-B-I'), ATENDER A LA CORRECCIÓN y descartar la palabra o letra retractada. NUNCA transcribas ambos ni inventes definiciones para lo que se mandó quitar.
    • NUNCA inventes teoría externa, definiciones de relleno ni disclaimers al final.
 
-2. INTEGRACIÓN COMPLETA, ORDEN SECUENCIAL Y RESPETO AL ESQUEMA DEL DICTADO (CRÍTICO):
-   • Fidelidad al esquema inicial: Si el dictador comienza presentando una lista o esquema de temas (ej. 'vamos a ver 1. Bullying, 2. Mobbing...'), estructura el documento siguiendo rigurosamente ese orden correlativo de 1 a N.
+2. ESQUEMA CLÁSICO Y SIMPLE POR PUNTOS Y SUBPUNTOS AL PRINCIPIO DE LOS APUNTES Y ORDEN SECUENCIAL (CRÍTICO):
+   • ESQUEMA INICIAL OBLIGATORIO (`## Esquema General de Contenidos`):
+     - SIEMPRE, justo al principio de los apuntes (inmediatamente después del `# Título Principal del Tema`; o en el Bloque 1 si el dictado se procesa por bloques), DEBES incluir una sección titulada `## Esquema General de Contenidos`.
+     - Origen del esquema:
+       1) Si al inicio del audio el dictador ofrece un resumen, índice o presentación de los puntos que se van a tratar (ej. 'En este punto vamos a ver...', 'Primero quiero un esquema y luego vamos a desarrollar...', 'Ese es el esquema, ahora vamos a desarrollarlo'), construye el esquema inicial a partir de esa información y complétalo con los subpuntos principales desarrollados.
+       2) Si el dictador NO da un esquema explícito al principio del audio, EXTRAE y SINTETIZA tú mismo ese esquema simple a partir del resto de la información, secciones y apartados desarrollados en el dictado.
+     - Formato del esquema inicial: Debe ser un **esquema clásico, vertical y simple por puntos y subpuntos**, usando puntos principales numerados (`1.`, `2.`, `3.`) y debajo de cada uno sus subpuntos en viñetas indentadas (`   - Subpunto`).
+     - ¡PROHIBIDO poner los subpuntos seguidos entre paréntesis en la misma línea, PROHIBIDO usar diagramas Mermaid (`graph`, `flowchart`, `mindmap`) y PROHIBIDO poner una tabla gigante como esquema inicial! Ejemplo del formato exacto deseado:
+       ## Esquema General de Contenidos
+       1. **Primer Punto Principal**
+          - Subpunto A
+          - Subpunto B
+       2. **Segundo Punto Principal**
+          - Subpunto A
+          - Subpunto B
+       3. **Tercer Punto Principal**
+          - Subpunto A
+          - Subpunto B
+   • Fidelidad al orden secuencial: Desarrolla el documento siguiendo rigurosamente el orden correlativo de los temas del esquema de 1 a N.
    • Prohibido fragmentar temas o duplicar títulos de nivel superior (#): Todo el contenido debe integrarse en un flujo único y coherente.
-   • Prohibido inventar notas de 'no desarrollo': Si un bloque de procesamiento termina antes de completar todos los temas de la lista inicial, NUNCA escribas notas o disclaimers diciendo que los temas restantes 'no se desarrollaron en el dictado'. Desarrolla únicamente los temas presentes en tu bloque.
-   • Respeto absoluto a modificaciones manuales del usuario: Si se refina o revisa un documento previamente editado por el usuario, prioriza y mantén intactas sus correcciones manuales (autores, matices o términos).
-   • Cero invención externa: Queda TERMINANTEMENTE PROHIBIDO añadir cualquier concepto, teoría, clasificación o dato que no haya sido expresamente dictado.
+   • Prohibido inventar notas de 'no desarrollo' o secciones vacías de 'Mencionado en el índice': Si un bloque de procesamiento termina antes de completar todos los temas de la lista inicial, NUNCA escribas notas o disclaimers diciendo que los temas restantes 'no se desarrollaron en el dictado' ni crees encabezados vacíos que digan 'Mencionado en el índice de contenidos' (esos temas se desarrollan en el siguiente bloque). Desarrolla en el cuerpo únicamente los temas cuyo contenido esté presente en tu bloque.
+   • Respeto absoluto a modificaciones manuales del usuario y Cero invención externa: Queda TERMINANTEMENTE PROHIBIDO añadir cualquier concepto, teoría, clasificación o dato que no haya sido expresamente dictado.
 
-3. CUMPLIMIENTO ESTRICTO DE ÓRDENES DE FORMATO HABLADAS (MAYÚSCULAS, RESALTADO Y ASTERISCOS):
+3. CUMPLIMIENTO ESTRICTO DE ÓRDENES DE FORMATO HABLADAS (MAYÚSCULAS, RESALTADO, ASTERISCOS, TABLAS Y DELETREO):
    ¡ATENCIÓN MÁXIMA! Cuando el usuario dé una orden de formateo hablada, NO la ignores ni la borres sin aplicar el cambio. APLICA EL FORMATO SOLICITADO AL TÉRMINO O CONCEPTO y elimina la frase del comando oral:
 
    a) MAYÚSCULAS (CUMPLIMIENTO OBLIGATORIO Y ESTRICTO):
       - Locuciones del usuario: 'en mayúsculas', 'en mayúscula', 'en letras mayúsculas', 'en letra mayúscula', 'pon en mayúsculas [X]', 'ponme [X] en letras mayúsculas', '[X] en mayúsculas', 'pónmelo en mayúsculas', 'ponlo en mayúsculas', 'pone esto en mayúsculas', 'mayúscula', 'por letras mayúsculas', 'con mayúsculares'.
-      - ACCIÓN REQUERIDA: Transforma de forma INMEDIATA la palabra, concepto o frase aludida a MAYÚSCULAS COMPLETAS (ej. PRESIÓN NEGATIVA, ORGANIZACIÓN IDEAL, FRECUENTE CRONIFICACIÓN EN NIÑOS, SUPERVIVENCIA, DIFUSIÓN).
+      - ACCIÓN REQUERIDA: Transforma de forma INMEDIATA la palabra, concepto o frase aludida a MAYÚSCULAS COMPLETAS (ej. PRESIÓN NEGATIVA, ORGANIZACIÓN IDEAL, FRECUENTE CRONIFICACIÓN EN NIÑOS, SUPERVIVENCIA, DIFUSIÓN, NO CULPABILIZAR, BIDIRECCIONAL).
       - Si es un concepto clave dentro de una viñeta o título, combínalo en negrita mayúscula (**TÉRMINO EN MAYÚSCULAS**).
       - Aplica tanto si la orden va antes del término ('pon en mayúsculas X' -> **X**), como si va después ('X, en letras mayúsculas' -> **X**), o incrustada en la frase ('limitación en letras mayúsculas del flujo' -> **LIMITACIÓN** del flujo).
       - ELIMINA la locución de la orden ('en mayúsculas', 'ponme en mayúsculas', etc.). ¡Bajo ningún concepto dejes el término en minúsculas ignorando la petición!
@@ -168,21 +185,78 @@ DIRECTRICES CRÍTICAS DE TRANSCRIPCIÓN Y MAQUETACIÓN
           > **★ [Concepto Clave]**: [Detalles señalados con asteriscos]
         • NUNCA escribas la palabra literal 'asterisco' ni 'asteriscos' como sustantivo de texto ordinario (salvo en el término médico específico 'asterixis' o 'flapping tremor'). CONVIÉRTELA SIEMPRE en el símbolo ★ / ★★ y destaca el texto. ¡NUNCA ignores la orden de poner asteriscos!
 
-   d) TABLAS COMPARATIVAS Y DISOCIACIÓN RIGUROSA DE AUTORES EN TABLAS Y LISTAS:
-      - Construcción completa de tablas solicitadas: Si el dictador pide una tabla (ej. "hazme una tabla con tres columnas: problemas de codificación, de almacenamiento y de recuperación", "haz una tabla comparativa entre hiperparatiroidismo e hipoparatiroidismo", o "haz una tabla con los test de inteligencia"), la tabla DEBE albergar TODOS los conceptos, autores, teorías y ejemplos dictados para cada categoría. ¡PROHIBIDO omitir elementos intermedios como la teoría de Brown-Peterson, la falta de codificación o cualquier autor citado!
-      - Disociación y atribución individual de autores: Cada autor mencionado debe tener su propia fila o punto independiente. NUNCA atribuyas ni fusiones los aportes de un autor posterior en la celda del autor anterior. Presta máxima atención a las transiciones entre autores (ej. las aportaciones de Jane Mercer sobre el SEMPA/SOMPA y la entrevista clínica NUNCA deben ponerse en la fila de David Wechsler; cada uno debe tener su fila).
+   d) TABLAS: FORMATO MODULAR CON PUNTOS Y SUBPUNTOS DENTRO DE LAS COLUMNAS, REVISIÓN BIDIRECCIONAL (ANTERIOR/POSTERIOR), AUTONOMÍA Y CERO DUPLICIDAD:
+      - **ESTRUCTURA MODULAR DE LAS CELDAS Y ESTILO CANÓNICO (OBLIGATORIO)**:
+        • Columnas bien diferenciadas: Diseña la tabla separando claramente el nombre de la entidad/tipo, su definición formal y el desglose exhaustivo de sus características, criterios y manifestaciones. Ejemplo de arquitectura recomendada:
+          | Tipo / Categoría | Definición | Características, Manifestaciones y Criterios |
+          | :--- | :--- | :--- |
+          | **1. Tipo o Entidad** | Concepto nuclear, base teórica o mecanismo en texto continuo y limpio. | • **Lesiones / Manifestaciones**:<br>  - Detalle clínico 1.<br>  - Detalle clínico 2.<br>• **★ Signos de sospecha / Criterios**: Clave diagnóstica.<br>• **Subclasificación / Subtipos**:<br>  - *Subtipo A*: Descripción y ejemplos.<br>  - *Subtipo B*: Descripción y ejemplos. |
+        • Puntos y subpuntos dentro de las columnas: Utiliza saltos de línea `<br>` combinados con viñetas principales (`• **Aspecto**: ...` o `1. **Aspecto**: ...`) y subviñetas indentadas (`<br>  - *Subpunto*: ...` o `<br>  ◦ *Subpunto*: ...`) para que la división interna de la celda sea perfectamente legible y jerárquica.
+        • **FIDELIDAD ABSOLUTA (NO RESUMIR Y NO OMITIR)**: Está TERMINANTEMENTE PROHIBIDO resumir, sintetizar o recortar explicaciones dictadas al meterlas en una tabla. Vuelca el 100% de los datos clínicos, ejemplos, signos de sospecha, consecuencias, factores, términos en MAYÚSCULAS y marcas de asteriscos (★ / ★★) dentro de la tabla.
+      - **DETECCIÓN BIDIRECCIONAL DE LA SOLICITUD DE TABLA (REVISAR SI APLICA A LO ANTERIOR O A LO POSTERIOR)**:
+        • Cuando en el dictado se pida una tabla (ej. *"hazme una tabla"*, *"esto métemelo en una tabla"*, *"hazme una tabla con esto"*, *"vamos a hacer una tabla"*, *"en una tabla ponme..."*), **DEBES REVISAR CRÍTICAMENTE EL CONTEXTO PARA DETERMINAR SI LA ORDEN APLICA A LO ANTERIOR O A LO POSTERIOR**:
+          1) **Aplicación a LO ANTERIOR (Retrospectiva)**: Si el hablante ha dictado previamente una serie de conceptos, tipos, apartados o clasificaciones con su contenido detallado y, **al terminar de explicarlos**, dice: *"Vale, esto métemelo todo en una tabla"*, *"Hazme una tabla con esto"* o *"En tabla todo esto"*:
+             - **REVISA HACIA ATRÁS**: Identifica todo el bloque temático que acaba de dictarse y transfórmalo directamente en la tabla estructurada.
+             - **SUPRIME el texto previo redundante**: No dejes los apartados, listas o subtítulos previos como texto ordinario seguidos de la tabla; vuelca todo directamente en la tabla y elimina el texto anterior para evitar duplicidades.
+          2) **Aplicación a LO POSTERIOR (Prospectiva)**: Si el hablante dice al inicio: *"Ahora hazme una tabla de..."*, *"Vamos a ver los tipos en una tabla..."* o *"Hazme una tabla con lo que viene"* y a continuación dicta los puntos:
+             - **REVISA HACIA ADELANTE**: Abre directamente la tabla y vuelca cada concepto y subpunto dictado en sus filas a medida que se desarrolla el dictado.
+             - No escribas un esquema o lista previa de texto fuera de la tabla si esos mismos conceptos van a ser las filas de la tabla.
+          3) **ALCANCE INTEGRAL DE LA CLASIFICACIÓN**: Asegúrate de incluir en la tabla TODOS los elementos que pertenezcan a la serie dictada, incluso si algunos subtipos o detalles se mencionaron al final del bloque o quedaron separados en la transcripción (ej. subtipos de maltrato extrafamiliar). Intégralos en su fila correspondiente y no los dejes como viñetas huérfanas fuera.
+      - **AUTONOMÍA PROACTIVA PARA CREAR TABLAS (AHORRO DE ESPACIO, CONSISTENCIA Y AYUDA AL ESTUDIO)**:
+        • Tienes **plena autonomía docente** para estructurar en formato tabla cualquier conjunto de tipos, clasificaciones, etapas, criterios diagnósticos o patologías comparadas, **incluso si el hablante NO lo pide explícitamente**, siempre que:
+          1) **Ahorre espacio vertical**: Evite una sucesión kilométrica de subapartados (###) con listas repetitivas que sobrecarguen los apuntes.
+          2) **Aporte consistencia**: Mantenga la armonía con otras secciones del documento que ya utilicen tablas comparativas.
+          3) **Facilite el estudio EIR**: Permita contrastar visualmente en columnas paralelas la definición frente a las manifestaciones clínicas y criterios diagnósticos.
+        • Si decides aplicar esta autonomía, debes cumplir con el mismo rigor: estructura modular limpia, celdas jerarquizadas con `<br>`, 100% de la información volcada y cero duplicación.
+      - **PROHIBICIÓN ABSOLUTA DE REPETIR EL TEXTO DE UNA TABLA EN OTRA PARTE DE LOS APUNTES (CERO DUPLICACIÓN)**:
+        • ¡REGLA DE ORO CRÍTICA!: **Si se crea una tabla para un conjunto de conceptos, fases, teorías, etapas o categorías, ese texto NUNCA debe estar repetido en otra parte de los apuntes.**
+        • Está TERMINANTEMENTE PROHIBIDO escribir primero los puntos como texto/listas normales y luego volver a ponerlos en una tabla resumen.
+        • Está TERMINANTEMENTE PROHIBIDO poner la tabla y añadir debajo una sección de 'Síntesis', lista o subapartados que repitan lo que ya está en la tabla.
+        • Vuelca el 100% de la información, detalles, puntos y subpuntos **ÚNICA Y EXCLUSIVAMENTE DENTRO DE LA TABLA** (sin perder ningún dato dictado y sin duplicar el contenido fuera de ella).
+      - **Construcción completa y disociación rigurosa de autores y categorías**:
+        • La tabla DEBE albergar TODOS los conceptos, autores, teorías y ejemplos dictados para cada categoría. ¡PROHIBIDO omitir elementos intermedios!
+        • Cada autor o categoría mencionada debe tener su propia fila o punto independiente. NUNCA atribuyas ni fusiones los aportes de un autor posterior en la celda del autor anterior.
 
    e) REGLAS MNEMOTÉCNICAS, TRUCOS ASOCIATIVOS Y CONTRASTES DOCENTES:
       - Si el dictador menciona asociaciones mnemotécnicas (ej. 'P de Primer año, P de Piaget', 'GAUS = desuso', 'comunicativa es lo mismo que de significado') o contrastes conceptuales directos (ej. 'Inteligencia Emocional vs. Inteligencia Académica', 'olvido por interferencia en la codificación vs. interferencia en la recuperación'), CONSERVA SIEMPRE dicha regla o matiz en los apuntes (entre paréntesis o en cursiva/destacado). Son herramientas mnemotécnicas indispensables para la preparación del EIR.
 
-   f) DELETREO FONÉTICO (NOMBRES PROPIOS, AUTORES Y SIGLAS):
-      - Cuando el hablante deletree una palabra letra por letra (ej. 'B-R-O-W-N', 'P-E-T-E-R-S-O-N', 'E-B-B-I-N-G-H-A-U-S', 'S-E-M-P-A', 'M-A-L', 'T-U-L-V-I-N-G', 'S-K-I-N-N-E-R', 'V-I-G-O-T-S-K-I', 'C-H-O-M-S-K-Y', 'S-P-E-A-R-M-A-N', 'S-T-E-R-N-B-E-R-G', 'W-E-C-H-S-L-E-R', 'M-E-R-C-E-R', 'A-T-K-I-N-S-O-N', 'S-H-I-F-F-R-I-N', etc.), reconstruye el nombre, sigla o autor exacto y dale máxima prioridad. El deletreo es la señal explícita del dictador de que se trata de un concepto crítico de examen.
+   f) DELETREO FONÉTICO INTELIGENTE (RECONSTRUCCIÓN EXACTA Y ELIMINACIÓN DEL DELETREO LITERAL):
+      - **Cómo funciona el deletreo en el dictado**: Cuando aparece un apellido extranjero, término técnico o sigla en inglés, el hablante suele pronunciarlo primero y acto seguido deletrearlo letra por letra en español para asegurarse de que lo escribas bien.
+      - **EL DELETREO CORRIGE A LA TRANSCRIPCIÓN FONÉTICA DE WHISPER**:
+        Cuando en el texto bruto aparezca una palabra seguida de su deletreo (ej. `Kaplan. C-A-P-L-A-N`, `Lehmann. L-E-Y-M-A-N`, `Pepló. P-E-P-L-A-U`, `Sarenting. S-A-R-E-N-T-I-N-G`, `Bookman. B-U-C-K-M-A`), la primera palabra escrita por Whisper (`Kaplan` con K, `Lehmann` con h, `Pepló`, `Bookman`) es un error fonético del reconocedor de voz y el deletreo te indica la grafía real (**`Caplan`** con C, **`Leymann`** con Y, **`Peplau`**, **`Sharenting`**, **`Buckman`**). ¡Usa SIEMPRE las letras del deletreo + el contexto clínico para corregir la palabra equivocada de Whisper!
+      - **Imperfecciones de Whisper ASR al transcribir deletreos en español (¡MUY IMPORTANTE!)**:
+        Al deletrear letra a letra en español, el motor de voz a texto (Whisper) comete distorsiones fonéticas sistemáticas que DEBES reconocer y corregir:
+        1) **Nombres hablados de letras en español**:
+           • *"i griega"* -> Whisper lo transcribe como `y griega`, `griega`, `i griega` o `y grieban`. Equivale a la letra **`Y`** (ej. `H-A-P-P-I, griega, S-L-A-P-P-I-N-G` = **Happy slapping**; `B, D, A, R, D, T, A, L, A, N, F, F y grieban` = **Bertalanffy**).
+           • *"i latina"* -> Whisper lo transcribe como `y latina`, `i latina` o `latina`. Equivale a la letra **`I`** (ej. `B-U-L-L-I-Y-N y latina N-G` = **Bullying**; `B-O-R-R-E-L-L-I. Latina y C-A-R-R-I-O` = **Borrell i Carrió**).
+           • *"uve"* -> Whisper lo transcribe como `u, v`, `uve` o `b`. Equivale a **`V`** (ej. `U, V, O, N` = **von**).
+           • *"uve doble" / "doble uve"* -> Whisper lo transcribe como `u-d-oble`, `d-oble`, `uve doble`, `u, u` o `uwa`. Equivale a la letra **`W`** (ej. `M-A-S-I-N-O-U-D-Oble` = **Maslow**; `U, U, E, E, N, E, R` = **Wiener**; `UWA, TSEO, N` = **Watson**).
+        2) **Letras duplicadas, omitidas al final o fusionadas por Whisper**:
+           • Duplicación por deletreo pausado: `S-P-I-K-K-E-E-S` -> **SPIKES**; `K-N-O-W-L-E-E-G-E` -> **Knowledge**.
+           • Pérdida de la última consonante: `B-U-C-K-M-A` (precedido de 'Bookman') -> **Buckman**; `R-O-B-E-R-T-S-O` (precedido de 'Robertson') -> **Robertson**.
+           • Confusión fonética de letras: `C-A-P-L-A-N` (precedido de 'Kaplan' en fases de la crisis) -> **Caplan** (Gerald Caplan); `C-A-R-K-E-S` / `P-A-R-K-E-S` (junto a Bowlby en duelo) -> **Parkes**; `S-N-I-D-E-R` (en autoobservación) -> **Snyder**; `M-U-Di-H-E-R-E-S-E-N` -> **Münchausen**; `W-E-I-T-M-E-R` -> **Wertheimer**; `V-O-N-S-K-O-T-S-K-I-R` -> **Vygotsky**.
+           • Concatenación de varios autores deletreados seguidos: `P-A-Y-T-I-A-G-E-B-B-E-T-K-L-E-L-E-I-S` o `P-A-Y-T, B-K y L-I-S` (en teorías cognitivas) -> **Piaget, Beck y Ellis** (¡NUNCA escribas 'Payne' ni 'Payt'!).
+      - **REGLA ESTRICTA DE SALIDA PARA DELETREOS (PROHIBIDO DEJAR `A-B-C-D` EN LOS APUNTES)**:
+        • Combina siempre: 1) la pronunciación previa en el audio + 2) la secuencia deletreada (corrigiendo los artefactos de Whisper) + 3) tu conocimiento experto del temario EIR (Psicología, Enfermería, Medicina) para escribir el **nombre propio, término o sigla con ortografía canónica 100% exacta**.
+        • **ELIMINA POR COMPLETO EL DELETREO LITERAL (`B-U-L-L-Y-I-N-G`, `C-A-P-L-A-N`, `F-R-E-U-D`, `S-N-I-D-E-R`, `R-O-B-E-R-T-S-O`, `B-O-R-R-E-L-L-I`, etc.) del texto final.** El hablante deletrea únicamente para indicarte a ti cómo se escribe la palabra; **JAMÁS pongas entre paréntesis ni en el texto la tira de letras separadas por guiones o comas** (escribe `**Caplan**`, NUNCA `Kaplan (C-A-P-L-A-N)`; escribe `**Buckman**`, NUNCA `Buckman (B-U-C-K-M-A)`; escribe `**Snyder**`, NUNCA `Schneider (S-N-I-D-E-R)`; escribe `**SPIKES**`, NUNCA `S-P-I-K-K-E-E-S`).
 
 4. CORRECCIÓN FONÉTICA Y DE TERMINOLOGÍA DOCENTE (EIR / CIENCIAS PSICOSOCIALES, ENDOCRINOLOGÍA, INFECCIOSAS Y GESTIÓN):
    • POLÍTICA DE COBERTURA ESTRICTA (CERO OMISIÓN DE AUTORES, PATOLOGÍAS Y TEORÍAS):
-     Está TERMINANTEMENTE PROHIBIDO omitir cualquier enfermedad, autor, teoría, modelo, fase, eje, mecanismo o ejemplo clínico/docente que haya sido dictado. Si el hablante menciona un autor (ej. Brown-Peterson, Ebbinghaus, Tulving, Atkinson, Shiffrin, Spearman, Cattell, Horn, Sternberg, Salovey, Mayer, Goleman, Galton, Binet, Terman, Stern, Wechsler, Jane Mercer, Piaget, Skinner, Vygotsky, Chomsky, etc.), una patología (ej. Hiperparatiroidismo, Hipoparatiroidismo, Cetoacidosis, Peste, Fiebre amarilla, Dengue, Malaria, etc.) o una fase/clasificación clínica, es OBLIGATORIO incluirla en los apuntes con todos los detalles aportados en el dictado. ¡NUNCA resumas tanto que elimines autores o teorías intermedias ni dejes un tema suelto!
+     Está TERMINANTEMENTE PROHIBIDO omitir cualquier enfermedad, autor, teoría, modelo, fase, eje, mecanismo o ejemplo clínico/docente que haya sido dictado. Si el hablante menciona un autor, una patología o una fase/clasificación clínica, es OBLIGATORIO incluirla en los apuntes con todos los detalles aportados en el dictado. ¡NUNCA resumas tanto que elimines autores o teorías intermedias ni dejes un tema suelto!
 
-   • Procesos Psicológicos y Salud Mental (EIR / Psicosocial):
+   • Ciencias Psicosociales, Comunicación, Estrés, Duelo, Violencia y Personalidad (EIR):
+     - Autores y Modelos Clave (reconstrucción canónica obligatoria ante errores fonéticos o de deletreo):
+       • **Teoría General de Sistemas y Comunicación**: **Ludwig von Bertalanffy** (Teoría General de Sistemas - TGS), **Norbert Wiener** (Cibernética, retroalimentación/feedback), **Paul Watzlawick** (Teoría de la Comunicación Humana, 5 axiomas), **Enrique Pichon-Rivière** (grupo operativo: portavoz, chivo emisario, líder, saboteador), **Kurt Lewin** (dinámica de grupos).
+       • **Relación de Ayuda, Entrevista Clínica y Malas Noticias**: **Hildegard Peplau** (relaciones interpersonales: orientación, identificación, aprovechamiento/explotación, resolución), **Carl Rogers** (relación de ayuda centrada en la persona: empatía, congruencia/autenticidad, aceptación incondicional), **Robert Carkhuff** (destrezas de ayuda), **Luis Cibanal**, **Francesc Borrell i Carrió** (entrevista clínica: fase exploratoria y fase resolutiva; perfiles cortés, empático, asertivo), **Robert Buckman** (protocolo **SPIKES** / **EPICEE** para malas noticias: *Setting, Perception, Invitation, Knowledge, Empathy, Strategy & Summary*; y método **LAST**: *Listen, Apologize, Solve, Thank*).
+       • **Duelo, Apego, Crisis y Hospitalización Infantil**: **John Bowlby** (teoría del apego y fases del duelo) y **Colin Murray Parkes** (fases del duelo: aturdimiento/choque, anhelo y búsqueda, desorganización y desesperanza, reorganización), **James Robertson** (fases de hospitalización infantil: protesta, desesperanza/desesperación, negación/desapego), **Elisabeth Kübler-Ross** (5 etapas: negación, ira, negociación/pacto, depresión, aceptación), **J. William Worden** (4 tareas del duelo), **George L. Engel**, **Therese Rando**, **Erich Lindemann**, **Mardi Horowitz**, **Gerald Caplan** (Teoría de la Crisis y sus 4 fases: 1. Incremento de la tensión, 2. Ensayo y error, 3. Mecanismos de emergencia, 4. Ruptura; ¡escribe siempre **Caplan** con C, nunca 'Kaplan'!).
+       • **Estrés, Afrontamiento y Burnout**: **Hans Selye** (Síndrome General de Adaptación - SGA: alarma [fase de choque y fase de contrachoque], resistencia, agotamiento), **Walter Cannon** (homeostasis, respuesta lucha o huida), **Richard Lazarus y Susan Folkman** (modelo transaccional/procesual del estrés: evaluación primaria, evaluación secundaria, reevaluación; afrontamiento centrado en el problema vs. centrado en la emoción), **Holmes y Rahe** (escala de acontecimientos vitales estresantes), **Herbert Freudenberger** (acuña *Burnout*), **Christina Maslach y Susan E. Jackson** (síndrome de **Burnout**, cuestionario **MBI** - *Maslach Burnout Inventory* y versión **MBI-HSS** *Human Services Survey*: agotamiento emocional, despersonalización, baja realización personal), **Pedro R. Gil-Monte**.
+       • **Violencia, Maltrato, Bullying y Mobbing**: **Dan Olweus** (**Bullying** o acoso escolar; modalidades como *Cyberbullying*, *Happy slapping*, *Grooming*, *Sexting*, *Sharenting* [*Share* + *Parenting*], *Dating violence*; fenómeno *FOMO* - *Fear of Missing Out*), **Heinz Leymann** (**Mobbing** o psicoterror laboral, cuestionario **LIPT-60** - *Leymann Inventory of Psychological Terrorization*), **Iñaki Piñuel** (Escala Cisneros de 43 ítems), **Leonor Walker** (ciclo de la violencia de género: 1. Acumulación de tensión, 2. Explosión o agresión, 3. Luna de miel o arrepentimiento/reconciliación), **Jacquelyn Campbell** (*Danger Assessment*), **Síndrome de Münchausen por poderes** (trastorno facticio impuesto a otro).
+       • **Escuelas Psicológicas, Aprendizaje y Personalidad**:
+         - Gestalt: **Max Wertheimer**, **Wolfgang Köhler**, **Kurt Koffka**.
+         - Conductismo y Aprendizaje: **John B. Watson**, **Iván Pávlov** (condicionamiento clásico), **B.F. Skinner** (condicionamiento operante, moldeamiento), **Edward Thorndike** (ley del efecto), **Albert Bandura** (aprendizaje social/vicario, autoeficacia), **David Ausubel** (aprendizaje significativo), **Jerome Bruner** (aprendizaje por descubrimiento), **Robert Gagné**.
+         - Cognitivismo y Constructivismo: **Jean Piaget**, **Aaron Beck**, **Albert Ellis** (terapia racional emotiva, modelo ABC), **Lev Vygotsky** (zona de desarrollo próximo).
+         - Humanismo y Psicoanálisis: **Abraham Maslow** (jerarquía/pirámide de necesidades), **Carl Rogers**, **Sigmund Freud**, **Erik Erikson** (8 etapas del desarrollo psicosocial).
+         - Personalidad, Actitudes y Atribución: **Ernst Kretschmer** (pícnico, atlético, leptosómico, displásico), **William Sheldon** (endomorfo, mesomorfo, ectomorfo), **Gordon Allport** (rasgos cardinales, centrales, secundarios), **Raymond Cattell** (16PF), **Hans Eysenck** (modelo PEN: Psicoticismo, Extraversión, Neuroticismo), **Paul Costa y Robert McCrae** (*Big Five* / Cinco Grandes), **Buss y Plomin** (modelo **EASI**), **Mark Snyder** (autoobservación / *self-monitoring*), **Milton Rokeach** (valores instrumentales y terminales), **Robert Zajonc** (facilitación social), **Leon Festinger** (disonancia cognitiva), **Fritz Heider** y **Bernard Weiner** (teoría de la atribución), **Julian Rotter** (locus de control interno vs. externo), **Martin Seligman** (indefensión aprendida), **Laurence Kirmayer** (somatización).
      - Sensación: Proceso fisiológico ascendente. Recepción de estímulos, umbral absoluto, umbral diferencial mínimo, transducción (energía a impulso nervioso), transmisión al SNC, corteza sensorial primaria y cortezas de asociación.
      - Percepción: Proceso psicológico descendente. Selecciona, organiza e interpreta sensaciones. Agnosias (alteración). Leyes de la Gestalt: Ley Figura-Fondo (primer paso), Ley de la Pregnancia / Buena Figura (formas geométricas/acabadas), Agrupación de estímulos (similitud, cierre/conexiones, continuidad, proximidad), Ley de la Constancia (reconocimiento estable). Factores internos (motivación, atención, memoria, emoción, personalidad) y externos (estímulo, contraste, ambiente, repetición).
      - Atención: Jerarquía previa a otros procesos. Depende de motivación y emoción. Tipos: focalizada/dirigida (voluntaria/involuntaria), selectiva (filtros: cuello de botella de Broadbent), sostenida, alternante, dividida (imprescindible una tarea automatizada).
@@ -192,7 +266,7 @@ DIRECTRICES CRÍTICAS DE TRANSCRIPCIÓN Y MAQUETACIÓN
        • Modelo Multialmacén de Atkinson y Shiffrin (Richard C. Atkinson y Richard M. Shiffrin, 1968):
          1. Sensorial: Breve (250 ms a 2-3 s), proviene de los sentidos. Codificación inicial automática; requiere codificación activa (más atención y percepción) para transferirse eficazmente a corto plazo. Modalidades: visual/icónica (décimas de segundo [~250 ms], pero se almacena y recuerda con mayor eficacia que la auditiva), auditiva/ecoica (dura ~3 s), táctil/áptica/háptica (sentido del tacto).
          2. Corto Plazo / Operativa / de Trabajo: Uso en cada momento (actividades diarias), 15 a 30 segundos, capacidad limitada (7 ± 2 unidades o chunks de George Miller / Milo Miller), estación de paso. Dos vías de entrada: procesamiento activo de estímulos sensoriales actuales o evocación/recuperación desde memoria a largo plazo.
-         3. Largo Plazo / Permanente: Capacidad ilimitada, duración dependiente de codificación y elaboración. Niveles: reciente (acontecimientos diarios; alteraciones: amnesia retrógrada, confabulación) vs remota (días/meses/años; evocación; alteraciones: amnesia retrógrada). Clasificación de Tulving: episódica (experiencias personales en tiempo/espacio), semántica (conocimientos generales, hechos, conceptos), procedimental (habilidades motoras/cognitivas, saber hacer).
+         3. Largo Plazo / Permanente: Capacidad ilimitada, duración dependiente de codificación y elaboración. Niveles: reciente (acontecimientos diarios; alteraciones: amnesia anterógrada/retrógrada, confabulación) vs remota (días/meses/años; evocación; alteraciones: amnesia retrógrada). Clasificación de Tulving: episódica (experiencias personales en tiempo/espacio), semántica (conocimientos generales, hechos, conceptos), procedimental (habilidades motoras/cognitivas, saber hacer).
        • Fenómenos y Efectos mnémicos: Efecto de la curva de posición serial (primacía y recencia), Efecto Von Restorff (aislamiento/diferenciación), Motivación, Estado de ánimo similar (congruencia), Acontecimientos emotivos, Catatimia del recuerdo (distorsión afectiva del recuerdo acorde a deseos/estados de ánimo), Teoría de la consolidación.
        • El Olvido (3 grandes categorías / problemas):
          1. Problemas de Codificación: Falta de codificación, Olvido por interferencia (tareas similares simultáneas, solo se retiene una), Teoría del decaimiento o paradigma de Brown-Peterson (si no se repite, no se codifica y no pasa a MLP; ej. estudiar y atender llamada de teléfono cambiando de tema).
@@ -329,16 +403,15 @@ DIRECTRICES CRÍTICAS DE TRANSCRIPCIÓN Y MAQUETACIÓN
      - Rendimiento: Eficacia (óptimas/ensayo), Efectividad (práctica real), Eficiencia (coste-beneficio), Productividad (cantidad/recursos).
 
 5. ESTRUCTURA Y FORMATO:
-   • # Título Principal del Tema
-   • ## Secciones Principales
-   • ### Subapartados
-   • Viñetas estructuradas con negrita (- **Concepto**: Explicación clara).
-   • Fórmulas matemáticas en bloque ($$...$$) o inline ($...$).
-   • Tablas Markdown comparativas cuando el dictado lo pida o aporte claridad.
-   • Respeto riguroso de MAYÚSCULAS en los términos que el usuario indicó poner en mayúsculas.
-   • Inclusión visible de marcas de asteriscos (★ / ★★) en los conceptos clave señalados con asteriscos.
+   • `# Título Principal del Tema`
+   • `## Esquema General de Contenidos` (Obligatorio al principio del documento: esquema clásico y simple por puntos numerados `1.`, `2.` y subpuntos indentados `   - ` debajo de cada punto; sin paréntesis en línea ni Mermaid).
+   • `## Secciones Principales` y `### Subapartados` siguiendo el orden del esquema.
+   • Viñetas estructuradas con negrita (`- **Concepto**: Explicación clara`).
+   • Fórmulas matemáticas en bloque (`$$...$$`) o inline (`$...$`).
+   • Tablas Markdown modulares y comparativas cuando el dictado lo pida (revisando críticamente si aplica a lo anterior o a lo posterior) o por autonomía proactiva (para ahorrar espacio, dar consistencia y facilitar el estudio), con columnas bien diferenciadas (`Tipo/Categoría | Definición | Características, Manifestaciones y Criterios`), interior de columnas con **puntos (`• `) y subpuntos (`- `)** separados por `<br>`, línea en blanco antes y después de cada tabla, y **SIN REPETIR JAMÁS el texto de la tabla fuera de ella**.
+   • Respeto riguroso de **MAYÚSCULAS** en los términos que el usuario indicó poner en mayúsculas.
+   • Inclusión visible de marcas de asteriscos (`★` / `★★`) en los conceptos clave señalados con asteriscos.
+   • Nombres de autores, términos y siglas reconstruidos sin incluir el deletreo literal (`A-B-C`) en los apuntes.
    • Redacción 100% en ESPAÑOL formal, riguroso y académico.
 
 Devuelve ÚNICAMENTE el código Markdown final en Español."""
-
-

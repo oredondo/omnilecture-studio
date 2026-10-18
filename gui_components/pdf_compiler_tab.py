@@ -120,6 +120,13 @@ class PDFCompilerTab(Gtk.Box):
         self.combo_font.set_active(0)
         grid_cfg.attach(self.combo_font, 1, 2, 1, 1)
 
+        # LLM organization toggle
+        self.chk_organize = Gtk.CheckButton(
+            label="Organizar contenido con IA (más lento). Activar solo si las notas están desordenadas."
+        )
+        self.chk_organize.set_active(False)
+        grid_cfg.attach(self.chk_organize, 0, 3, 2, 1)
+
         # Action Button
         self.btn_compile = Gtk.Button(label="Generar PDF Optimizado")
         self.btn_compile.set_sensitive(False)
@@ -222,9 +229,11 @@ class PDFCompilerTab(Gtk.Box):
         font_id = self.combo_font.get_active_id()
         font_size_mode = font_id if font_id else "small"
 
+        organize = self.chk_organize.get_active()
+
         threading.Thread(
             target=self._compile_worker,
-            args=(list(self.selected_files), force_orient, force_cols, font_size_mode),
+            args=(list(self.selected_files), force_orient, force_cols, font_size_mode, organize),
             daemon=True
         ).start()
 
@@ -233,7 +242,8 @@ class PDFCompilerTab(Gtk.Box):
         files: list,
         force_orient: str | None,
         force_cols: int | None,
-        font_size_mode: str | None = None
+        font_size_mode: str | None = None,
+        organize: bool = True
     ):
         def progress_cb(message: str, progress: float):
             GLib.idle_add(self._update_ui, message, progress)
@@ -245,6 +255,7 @@ class PDFCompilerTab(Gtk.Box):
                 force_orientation=force_orient,
                 force_columns=force_cols,
                 font_size_mode=font_size_mode,
+                organize=organize,
                 status_callback=progress_cb
             )
             GLib.idle_add(self._on_complete, True, pdf_path, strategy)

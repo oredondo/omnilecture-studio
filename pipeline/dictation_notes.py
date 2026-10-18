@@ -86,9 +86,13 @@ class VoiceDictationNotesGenerator:
         dictation_prompt = (
             "Dictado estructurado de apuntes docentes y de estudio de enfermería para la oposición EIR. "
             "Terminología médica, epidemiología, enfermedades infecciosas, farmacología, salud pública, "
-            "ciencias psicosociales (memoria, pensamiento, lenguaje, inteligencia, modelos de Atkinson, "
-            "Shiffrin, Tulving, Ebbinghaus, Brown-Peterson, Spearman, Cattell, Horn, Sternberg, Salovey, "
-            "Mayer, Piaget, Skinner, Chomsky, Vygotsky, Wechsler, Jane Mercer, SEMPA) y endocrinología."
+            "ciencias psicosociales (memoria, pensamiento, lenguaje, inteligencia, duelo, estrés, comunicación, "
+            "violencia, modelos de Atkinson, Shiffrin, Tulving, Ebbinghaus, Brown-Peterson, Spearman, Cattell, "
+            "Horn, Sternberg, Salovey, Mayer, Piaget, Beck, Ellis, Skinner, Chomsky, Vygotsky, Wechsler, "
+            "Jane Mercer, SEMPA, Buckman, SPIKES, Borrell i Carrió, Bowlby, Parkes, Robertson, Kübler-Ross, "
+            "Worden, Lazarus, Folkman, Selye, Maslach, Burnout, Freudenberger, Leymann, Mobbing, Olweus, "
+            "Bullying, Bertalanffy, Wiener, Watzlawick, Pichon-Rivière, Peplau, Carl Rogers, Snyder, "
+            "Kretschmer, Eysenck, McCrae, Münchausen) y endocrinología."
         )
         transcriber = AudioTranscriber(
             audio_path,
@@ -109,7 +113,9 @@ class VoiceDictationNotesGenerator:
                 pass
 
         if not raw_text:
-            raise ValueError("No se detectó voz inteligible en el audio. Asegúrate de hablar claro y cerca del micrófono.")
+            raise ValueError(
+                "No se detectó voz inteligible en el audio. Asegúrate de hablar claro y cerca del micrófono."
+            )
 
         logger.info(f"Whisper {mode_str} transcription completed successfully.")
         return raw_text
@@ -134,7 +140,11 @@ class VoiceDictationNotesGenerator:
         preprocessed_text = DictationPreprocessor.process(dictation_text)
 
         from pipeline.dictation_chunker import DictationChunker, DictationAssembler
-        chunks = DictationChunker.split(preprocessed_text)
+        chunks = DictationChunker.split(
+            preprocessed_text,
+            target_chunk_words=1800,
+            min_threshold_words=2800
+        )
         num_chunks = len(chunks)
         total_words = len(preprocessed_text.split())
         logger.info(f"Dictation pre-node divided input into {num_chunks} chunk(s) (total words: {total_words}).")
@@ -148,10 +158,18 @@ class VoiceDictationNotesGenerator:
                     progress = 0.50 + (i / num_chunks) * 0.38
                     status_callback(f"Procesando bloque temático {i+1} de {num_chunks} con IA...", progress)
 
-                chunk_user_content = (
-                    f"--- BLOQUE TEMÁTICO {i+1} DE {num_chunks} DEL DICTADO ---\n\n"
-                    f"{chunk_content}"
-                )
+                if i == 0:
+                    chunk_user_content = (
+                        f"--- BLOQUE TEMÁTICO 1 DE {num_chunks} DEL DICTADO "
+                        f"(INCLUIR # TÍTULO PRINCIPAL Y ## ESQUEMA GENERAL DE CONTENIDOS AL INICIO) ---\n\n"
+                        f"{chunk_content}"
+                    )
+                else:
+                    chunk_user_content = (
+                        f"--- BLOQUE TEMÁTICO {i+1} DE {num_chunks} DEL DICTADO "
+                        f"(CONTINUACIÓN DIRECTA: NO REPETIR # TÍTULO PRINCIPAL NI ## ESQUEMA GENERAL) ---\n\n"
+                        f"{chunk_content}"
+                    )
             else:
                 logger.info("Sending preprocessed dictation to LLM for structured notes generation...")
                 if status_callback:
@@ -169,7 +187,7 @@ class VoiceDictationNotesGenerator:
                 status_callback("Ensamblando y consolidando apuntes temáticos...", 0.90)
             formatted_notes = DictationAssembler.assemble(chunk_notes_list)
         else:
-            formatted_notes = chunk_notes_list[0]
+            formatted_notes = DictationAssembler.clean_generated_markdown(chunk_notes_list[0])
 
         md_filename = f"{timestamp}_dictado.md"
         md_path = os.path.join(self.output_dir, md_filename)

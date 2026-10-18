@@ -15,7 +15,8 @@ class HTMLGenerator:
 
     def generate(self, markdown_text: str, strategy: LayoutStrategy) -> str:
         """Generates standalone HTML with custom CSS according to LayoutStrategy."""
-        raw_html = self.md_parser.render(markdown_text)
+        from pipeline.pdf_compiler.md_utils import preprocess_markdown
+        raw_html = self.md_parser.render(preprocess_markdown(markdown_text))
         processed_html = self._post_process_html(raw_html, strategy)
         css = self._build_css(strategy)
 
@@ -98,8 +99,13 @@ class HTMLGenerator:
         html_content = re.sub(r'<table>', table_tagger, html_content)
 
         # 3. Style star tags (★, ★★) as highlighted badges
-        html_content = html_content.replace('★★', '<span class="star-badge double-star">★★ EIR</span>')
-        html_content = html_content.replace('★', '<span class="star-badge single-star">★ EIR</span>')
+        # Single pass so '★★' is not re-matched by the '★' rule; swallow a literal "EIR" after the star(s)
+        html_content = re.sub(
+            r'(★{1,2})(?:\s*EIR\b)?',
+            lambda m: ('<span class="star-badge double-star">★★ EIR</span>' if len(m.group(1)) == 2
+                       else '<span class="star-badge single-star">★ EIR</span>'),
+            html_content,
+        )
 
         return html_content
 
@@ -254,8 +260,16 @@ class HTMLGenerator:
             margin: 4px 0 5px 0;
             font-size: {strategy.table_font_size_pt}pt;
             line-height: 1.15;
+        }}
+
+        /* Tables may flow across pages (avoids big blank gaps); rows stay whole and header repeats */
+        table.content-table tr {{
             break-inside: avoid;
             page-break-inside: avoid;
+        }}
+
+        table.content-table thead {{
+            display: table-header-group;
         }}
 
         table.table-span-all {{
