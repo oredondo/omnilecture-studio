@@ -16,7 +16,7 @@ import config  # noqa: E402
 from processor import MediaProcessor  # noqa: E402
 
 
-def compress_video_cli(input_path: str, output_path: str = None, create_aliases: bool = True):
+def compress_video_cli(input_path: str, output_path: str = None):
     """Compresses an input video and extracts companion audio MP3."""
     processor = MediaProcessor()
     if not processor.is_available():
@@ -95,7 +95,6 @@ def compress_video_cli(input_path: str, output_path: str = None, create_aliases:
 
     # Replace target files with the compressed versions atomically
     if os.path.exists(output_path) and os.path.samefile(input_path, output_path):
-        # In case input was the same file being overwritten
         pass
     else:
         if os.path.exists(output_path):
@@ -119,34 +118,17 @@ def compress_video_cli(input_path: str, output_path: str = None, create_aliases:
     print(f"  Extracted MP3 size:  {mp3_size / (1024 * 1024):.2f} MB")
     print(f"  Final MP4:           {output_path}")
     print(f"  Final MP3:           {final_mp3}")
-
-    if create_aliases and "psicosocial" in os.path.basename(output_path).lower():
-        alias_mp4 = os.path.join(out_dir, "20.Psicosocial (2ª).mp4")
-        alias_mp3 = os.path.join(out_dir, "20.Psicosocial (2ª).mp3")
-        try:
-            if not os.path.exists(alias_mp4):
-                os.symlink(os.path.basename(output_path), alias_mp4)
-                print(f"  Alias symlink:       {alias_mp4} -> {os.path.basename(output_path)}")
-            if not os.path.exists(alias_mp3):
-                os.symlink(os.path.basename(final_mp3), alias_mp3)
-                print(f"  Alias symlink:       {alias_mp3} -> {os.path.basename(final_mp3)}")
-        except Exception as err:
-            print(f"  [WARNING] Could not create alias symlink: {err}")
-
     print("=================================================================\n")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Compress video files using standard project settings.")
-    parser.add_argument("input", nargs="?", default="/home/cristina/Documentos/psicosocial segunda.mp4",
-                        help="Path to input video file (default: ~/Documentos/psicosocial segunda.mp4)")
+    parser.add_argument("input", help="Path to input video file")
     parser.add_argument("-o", "--output", default=None,
-                        help="Path to output video file (default: ~/Documentos/Zoom/<input_name>)")
-    parser.add_argument("--no-alias", action="store_true",
-                        help="Do not create EIR subject aliases (e.g. 20.Psicosocial (2ª).mp4)")
+                        help="Path to output video file (default: OUTPUT_DIR/<input_name>)")
     args = parser.parse_args()
 
-    compress_video_cli(args.input, args.output, create_aliases=not args.no_alias)
+    compress_video_cli(args.input, args.output)
 
 
 if __name__ == "__main__":
