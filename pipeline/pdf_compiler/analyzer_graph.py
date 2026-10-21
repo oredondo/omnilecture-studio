@@ -1,10 +1,13 @@
 import os
 import re
+import hashlib
+from datetime import datetime
 import logging
 from typing import TypedDict, Dict, Any, List, Optional
 from langgraph.graph import StateGraph, END
 
 from pipeline.llm_manager import LLMManager
+from pipeline.pdf_compiler.md_utils import preprocess_markdown
 from pipeline.pdf_compiler.schemas import (
     LayoutStrategy,
     DocumentMetrics,
@@ -21,6 +24,7 @@ class PDFCompilerState(TypedDict):
     metrics: Dict[str, Any]
     layout_strategy: Dict[str, Any]
     merged_markdown: str
+    organize: bool
 
 
 class MDLayoutOptimizerGraph:
@@ -40,19 +44,258 @@ class MDLayoutOptimizerGraph:
         return self._llm_manager
 
     def _build_graph(self):
+        self.workflow.add_node("organize_content", self.organize_content_node)
         self.workflow.add_node("extract_metrics", self.extract_metrics_node)
         self.workflow.add_node("analyze_layout", self.analyze_layout_node)
         self.workflow.add_node("merge_markdown", self.merge_markdown_node)
 
-        self.workflow.set_entry_point("extract_metrics")
+        self.workflow.set_entry_point("organize_content")
+        self.workflow.add_edge("organize_content", "extract_metrics")
         self.workflow.add_edge("extract_metrics", "analyze_layout")
         self.workflow.add_edge("analyze_layout", "merge_markdown")
         self.workflow.add_edge("merge_markdown", END)
 
         self.app = self.workflow.compile()
 
+    @staticmethod
+    def _strip_frontmatter(text: str) -> str:
+        doc = text.strip()
+        if doc.startswith("---"):
+            parts = doc.split("---", 2)
+            if len(parts) >= 3:
+                doc = parts[2].strip()
+        return doc
+
+    @staticmethod
+    def _word_set(text: str) -> set:
+        return set(re.findall(r"\w+", text.lower()))
+
+    def organize_content_node(self, state: PDFCompilerState) -> Dict[str, Any]:
+        """Node 0: Joins all markdown files and, via LLM, gives them a coherent structure
+        (title, sections, ordering) WITHOUT altering, removing or inventing information.
+        Falls back to the plain concatenation if the LLM fails or loses content."""
+        raw_texts = state.get("raw_texts", [])
+        md_paths = state.get("md_paths", [])
+
+        if not raw_texts and md_paths:
+            raw_texts = []
+            for path in md_paths:
+                if os.path.exists(path):
+                    with open(path, "r", encoding="utf-8") as f:
+                        raw_texts.append(f.read())
+
+        docs = [preprocess_markdown(self._strip_frontmatter(t)) for t in raw_texts]
+        docs = [d for d in docs if d]
+        if not docs:
+            return {"raw_texts": raw_texts}
+
+        joined = "\n\n".join(docs)
+        if len(docs) == 1 and len(joined.split()) < 20:
+            return {"raw_texts": [joined]}
+
+        if not state.get("organize", False):
+            logger.info("LLM organization disabled; using plain merge.")
+            self._report("Organización con IA desactivada; uniendo archivos...", 0.85)
+            return {"raw_texts": docs}
+
+        chunks = self._chunk_docs(docs, self.ORGANIZE_CHUNK_WORDS)
+        logger.info(f"Organizing content in {len(chunks)} block(s).")
+        self._report(f"Organizando contenido: 0/{len(chunks)} bloques...", 0.0)
+
+        # Headings of the ORIGINAL previous blocks are known upfront, so blocks can run in parallel.
+        outlines: List[List[str]] = []
+        acc: List[str] = []
+        for chunk in chunks:
+            outlines.append(list(acc))
+            acc.extend(re.findall(r"(?m)^#{1,3}\s+.+$", chunk))
+
+        llm = self.llm_manager.llm  # create once before spawning threads
+        self._debug_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            ".temp", "pdf_debug", datetime.now().strftime("run_%Y%m%d_%H%M%S"),
+        )
+        done_count = [0]
+
+        def work(idx: int) -> str:
+            result = None
+            try:
+                result = self._organize_chunk(chunks[idx], idx, len(chunks), outlines[idx])
+            except Exception as e:
+                logger.warning(f"Block {idx + 1}/{len(chunks)} failed, keeping original text: {e}")
+            done_count[0] += 1
+            logger.info(f"Organize progress: {done_count[0]}/{len(chunks)} blocks finished.")
+            self._report(f"Organizando contenido: {done_count[0]}/{len(chunks)} bloques...",
+                         0.85 * done_count[0] / len(chunks))
+            return result if result is not None else chunks[idx]
+
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=self.ORGANIZE_PARALLEL) as ex:
+            organized_parts = list(ex.map(work, range(len(chunks))))
+
+        # Debug files are only kept when some block was discarded; otherwise remove them.
+        if os.path.isdir(self._debug_dir):
+            logger.warning(f"Discarded blocks saved for inspection in: {self._debug_dir}")
+        organized = "\n\n".join(organized_parts)
+        return {"raw_texts": [organized]}
+
+    ORGANIZE_PARALLEL = 7
+    ORGANIZE_CHUNK_WORDS = 3500  # model: 98k ctx, 16k max output -> keep each block well inside both
+
+    @staticmethod
+    def _chunk_docs(docs: List[str], max_words: int) -> List[str]:
+        """Splits documents (in order) into blocks of ~max_words, cutting at headings
+        or blank lines so that no sentence/table is split."""
+        pieces: List[str] = []
+        for doc in docs:
+            sections = re.split(r"(?m)^(?=#{1,3}\s)", doc)
+            for sec in sections:
+                if not sec.strip():
+                    continue
+                if len(sec.split()) <= max_words:
+                    pieces.append(sec.strip())
+                    continue
+                buf: List[str] = []
+                count = 0
+                for para in re.split(r"\n\s*\n", sec):
+                    w = len(para.split())
+                    if buf and count + w > max_words:
+                        pieces.append("\n\n".join(buf))
+                        buf, count = [], 0
+                    buf.append(para)
+                    count += w
+                if buf:
+                    pieces.append("\n\n".join(buf))
+
+        chunks: List[str] = []
+        cur: List[str] = []
+        count = 0
+        for piece in pieces:
+            w = len(piece.split())
+            if cur and count + w > max_words:
+                chunks.append("\n\n".join(cur))
+                cur, count = [], 0
+            cur.append(piece)
+            count += w
+        if cur:
+            chunks.append("\n\n".join(cur))
+        return chunks
+
+    CACHE_DIR = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        ".temp", "pdf_cache",
+    )
+
+    @classmethod
+    def _cache_path(cls, prompt: str) -> str:
+        """Cache key = hash of the full prompt (rules + outline + block text) so any change invalidates it."""
+        return os.path.join(cls.CACHE_DIR, hashlib.sha256(prompt.encode("utf-8")).hexdigest() + ".md")
+
+    @staticmethod
+    def _cache_read(path: str) -> Optional[str]:
+        try:
+            if os.path.isfile(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    return f.read()
+        except Exception:
+            pass
+        return None
+
+    @classmethod
+    def _cache_write(cls, path: str, content: str) -> None:
+        try:
+            os.makedirs(cls.CACHE_DIR, exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+        except Exception as e:
+            logger.warning(f"Could not write block cache: {e}")
+
+    def _save_debug_block(self, idx: int, original: str, llm_output: str, missing: set) -> None:
+        """Stores a discarded block (original, LLM output, missing words) in a temp folder."""
+        try:
+            d = getattr(self, "_debug_dir", None)
+            if not d:
+                return
+            os.makedirs(d, exist_ok=True)
+            base = os.path.join(d, f"block_{idx + 1:02d}")
+            with open(base + "_original.md", "w", encoding="utf-8") as f:
+                f.write(original)
+            with open(base + "_llm.md", "w", encoding="utf-8") as f:
+                f.write(llm_output)
+            with open(base + "_missing_words.txt", "w", encoding="utf-8") as f:
+                f.write(f"{len(missing)} words missing in LLM output\n\n" + "\n".join(sorted(missing)))
+        except Exception as e:
+            logger.warning(f"Could not save debug block {idx + 1}: {e}")
+
+    def _organize_chunk(self, chunk: str, idx: int, total: int, outline: List[str]) -> Optional[str]:
+        """Organizes one block with the LLM. Returns None if the result loses information."""
+        if len(chunk.split()) < 15:
+            return None
+
+        if idx == 0:
+            title_rule = "Empieza con un único título general (#) para todo el material. "
+        else:
+            title_rule = ("NO pongas título general (#): este bloque continúa un documento ya iniciado; "
+                          "usa ## y ### para las secciones. ")
+        outline_txt = ""
+        if outline:
+            outline_txt = ("Encabezados ya usados en bloques anteriores (si el tema coincide, continúa esa sección "
+                           "en vez de repetir el encabezado):\n" + "\n".join(outline[-60:]) + "\n\n")
+
+        prompt = (
+            "Eres un editor de apuntes de estudio. Recibes un fragmento (bloque "
+            f"{idx + 1} de {total}) de un material en Markdown. Devuélvelo como Markdown bien formado, "
+            "coherente y lo más COMPACTO posible para imprimir.\n\n"
+            "REGLAS ESTRICTAS (información):\n"
+            "1. NO elimines, resumas, reformules ni inventes información. Todo dato, cifra, nombre, definición, "
+            "lista y tabla debe conservarse con sus palabras.\n"
+            f"2. {title_rule}Crea/normaliza encabezados (##, ###), agrupa y reordena bloques del mismo tema "
+            "y fusiona encabezados duplicados.\n"
+            "3b. Si hay un 'Esquema Inicial del Tema' o esquema general, déjalo como lista con viñetas simple y corta "
+            "(máx. 2 niveles); NUNCA uses diagramas mermaid ni bloques de código para esquemas.\n"
+            "3. Mantén los callouts (> [!NOTE], etc.) en su sintaxis, pero no crees callouts nuevos decorativos.\n\n"
+            "REGLAS DE AHORRO DE ESPACIO (sin perder datos):\n"
+            "4. Convierte en tablas Markdown compactas las comparativas, clasificaciones, listas de elementos con "
+            "los mismos atributos (p. ej. concepto | definición | ejemplo) y datos repetitivos. Máx. 5-6 columnas. "
+            "Cada dato original debe quedar en alguna celda. No fuerces tablas donde no encajan.\n"
+            "5. Solo une tablas consecutivas si tienen exactamente las mismas columnas y el resultado no supera ~20 filas; "
+            "nunca crees tablas gigantes: divide las largas por subtemas.\n"
+            "6. Listas muy cortas (elementos de 1-3 palabras) pueden ir en una sola línea separadas por ' · ' "
+            "o ' | ' en lugar de una viñeta por línea.\n"
+            "7. Elimina SOLO relleno de formato: líneas en blanco sobrantes, separadores (---), encabezados vacíos o "
+            "que solo repiten el título de la tabla que sigue, numeraciones redundantes, negritas/emojis decorativos "
+            "y frases de transición sin contenido (p. ej. 'A continuación se muestra la tabla'). "
+            "Si un encabezado tiene un solo párrafo corto, intégralo en negrita en la sección superior.\n"
+            "8. Evita anidar listas a más de 2 niveles; no dejes encabezados consecutivos sin contenido entre ellos.\n"
+            "9. Responde SOLO con el Markdown final, sin explicaciones ni bloques ``` envolventes.\n\n"
+            f"{outline_txt}--- BLOQUE {idx + 1}/{total} ---\n\n{chunk}"
+        )
+        cache_file = self._cache_path(prompt)
+        cached = self._cache_read(cache_file)
+        if cached is not None:
+            logger.info(f"Block {idx + 1}/{total} loaded from cache.")
+            return cached
+
+        response = self.llm_manager.llm.invoke(prompt)
+        content = getattr(response, "content", response)
+        if isinstance(content, list):
+            content = "".join(c.get("text", "") if isinstance(c, dict) else str(c) for c in content)
+        content = str(content).strip()
+        content = re.sub(r"^```(?:markdown|md)?\s*\n|\n```\s*$", "", content).strip()
+
+        original_words = self._word_set(chunk)
+        coverage = len(original_words & self._word_set(content)) / max(len(original_words), 1)
+        if coverage < 0.97:
+            self._save_debug_block(idx, chunk, content, original_words - self._word_set(content))
+            logger.warning(f"Block {idx + 1}/{total} lost content (coverage {coverage:.1%}); keeping original.")
+            return None
+        self._cache_write(cache_file, content)
+        logger.info(f"Block {idx + 1}/{total} organized (coverage {coverage:.1%}, "
+                    f"{len(chunk.split())}->{len(content.split())} words).")
+        return content
+
     def extract_metrics_node(self, state: PDFCompilerState) -> Dict[str, Any]:
         """Node 1: Inspects the raw markdown contents and calculates structural metrics."""
+        self._report("Calculando métricas del documento...", 0.85)
         raw_texts = state.get("raw_texts", [])
         md_paths = state.get("md_paths", [])
 
@@ -105,6 +348,7 @@ class MDLayoutOptimizerGraph:
 
     def analyze_layout_node(self, state: PDFCompilerState) -> Dict[str, Any]:
         """Node 2: Determines the optimal LayoutStrategy via LLM structured output or heuristic fallback."""
+        self._report("Analizando la maquetación óptima con el LLM...", 0.90)
         metrics_dict = state["metrics"]
         metrics = DocumentMetrics(**metrics_dict)
         raw_texts = state.get("raw_texts", [])
@@ -314,13 +558,27 @@ class MDLayoutOptimizerGraph:
             justification=justification
         )
 
-    def run(self, md_paths: List[str] = None, raw_texts: List[str] = None) -> Dict[str, Any]:
-        """Executes the graph workflow and returns the final state."""
+    def _report(self, message: str, fraction: float) -> None:
+        """Reports graph progress (fraction 0..1 of the whole graph) if a callback was given."""
+        cb = getattr(self, "_progress_cb", None)
+        if cb:
+            try:
+                cb(message, max(0.0, min(1.0, fraction)))
+            except Exception:
+                pass
+
+    def run(self, md_paths: List[str] = None, raw_texts: List[str] = None,
+            progress_callback=None, organize: bool = False) -> Dict[str, Any]:
+        """Executes the graph workflow and returns the final state.
+
+        progress_callback: optional callable(message: str, fraction: float 0..1)."""
+        self._progress_cb = progress_callback
         initial_state = {
             "md_paths": md_paths or [],
             "raw_texts": raw_texts or [],
             "metrics": {},
             "layout_strategy": {},
-            "merged_markdown": ""
+            "merged_markdown": "",
+            "organize": organize
         }
         return self.app.invoke(initial_state)

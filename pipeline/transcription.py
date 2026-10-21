@@ -121,7 +121,7 @@ class AudioTranscriber:
         logger.info(f"Transcribing audio using remote Whisper API ({self.remote_endpoint})...")
         chunk_pattern = os.path.join(self.temp_dir, "audio_chunk_%03d.mp3")
 
-        segment_seconds = 300
+        segment_seconds = 120
         try:
             cmd = [
                 "ffmpeg", "-y", "-i", audio_source_path,
@@ -139,6 +139,13 @@ class AudioTranscriber:
 
         logger.info(f"Audio split into {len(chunk_files)} chunks for remote Whisper processing.")
 
+        # Common hallucination signatures in Whisper when audio has silence or music
+        hallucination_patterns = [
+            "suscríbete al canal", "suscribete al canal", "gracias por ver",
+            "el corte de la corte", "el trabajo de la cámara", "música",
+            "subtítulos por", "subtitulado por"
+        ]
+
         transcribed_segments = []
         last_context_tail = ""
         for idx, chunk_file in enumerate(chunk_files):
@@ -149,28 +156,37 @@ class AudioTranscriber:
                 status_callback(msg, 0.20 + (idx / len(chunk_files)) * 0.20)
 
             chunk_prompt = self.initial_prompt or ""
-            if last_context_tail:
-                chunk_prompt = f"{chunk_prompt} ... Continuación: {last_context_tail}".strip()[-450:]
+            # Only append context tail if it doesn't look like a hallucination
+            if last_context_tail and not any(h in last_context_tail.lower() for h in hallucination_patterns):
+                chunk_prompt = f"{chunk_prompt} ... Continuación: {last_context_tail}".strip()[-300:]
 
             chunk_text = self._send_remote_chunk(chunk_file, prompt=chunk_prompt)
             if chunk_text:
-                lines = [line_item.strip() for line_item in chunk_text.splitlines() if line_item.strip()]
-                if not lines and chunk_text.strip():
-                    lines = [chunk_text.strip()]
+                raw_lines = [line_item.strip() for line_item in chunk_text.splitlines() if line_item.strip()]
+                # Filter out repetitive loop lines and known hallucinations
+                clean_lines = []
+                seen_counts = {}
+                for line in raw_lines:
+                    l_lower = line.lower()
+                    if any(h in l_lower for h in hallucination_patterns):
+                        continue
+                    seen_counts[l_lower] = seen_counts.get(l_lower, 0) + 1
+                    if seen_counts[l_lower] <= 2:  # Allow at most 2 repeats of identical line
+                        clean_lines.append(line)
 
-                clean_text = " ".join(lines)
-                if len(clean_text) > 150:
-                    last_context_tail = clean_text[-150:]
+                if clean_lines:
+                    clean_text = " ".join(clean_lines)
+                    last_context_tail = clean_text[-120:] if len(clean_text) > 120 else clean_text
                 else:
-                    last_context_tail = clean_text
+                    last_context_tail = ""
 
                 if self.include_timestamps:
                     minutes, seconds = divmod(offset_sec, 60)
                     timestamp_str = f"[{minutes:02d}:{seconds:02d}]"
-                    for line in lines:
+                    for line in clean_lines:
                         transcribed_segments.append(f"{timestamp_str} {line}\n")
                 else:
-                    for line in lines:
+                    for line in clean_lines:
                         transcribed_segments.append(f"{line}\n")
 
             try:

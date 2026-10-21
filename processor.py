@@ -73,6 +73,8 @@ class MediaProcessor:
             
         total_duration = self.get_duration(video_path)
         if total_duration <= 0.0:
+            total_duration = self.get_duration(audio_path)
+        if total_duration <= 0.0:
             total_duration = 1.0 # Prevent division by zero
             
         # Build FFmpeg command with sync offset alignment if configured
@@ -119,6 +121,67 @@ class MediaProcessor:
         ])
         
         logger.info(f"Running FFmpeg merge command: {' '.join(cmd)}")
+        success = self._run_ffmpeg_command(cmd, output_path, total_duration, progress_callback=progress_callback)
+        if success:
+            # Clean up temporary files upon success
+            try:
+                os.remove(video_path)
+                os.remove(audio_path)
+                logger.info("Temporary recording files removed.")
+            except Exception as cleanup_err:
+                logger.warning(f"Failed to remove temporary files: {cleanup_err}")
+            return True
+        return False
+
+    def compress_video(self, input_path: str, output_path: str, progress_callback=None) -> bool:
+        """Compresses a standalone video file and extracts its audio MP3 using standard settings."""
+        if not self.is_available():
+            logger.error("FFmpeg is not installed on this system. Cannot compress video.")
+            return False
+            
+        if not os.path.exists(input_path):
+            logger.error(f"Input video file not found: {input_path}")
+            return False
+            
+        out_dir = os.path.dirname(output_path)
+        if out_dir and not os.path.exists(out_dir):
+            os.makedirs(out_dir, exist_ok=True)
+            
+        total_duration = self.get_duration(input_path)
+        if total_duration <= 0.0:
+            total_duration = 1.0
+            
+        mp3_output_path = os.path.splitext(output_path)[0] + ".mp3"
+        
+        cmd = [
+            self.ffmpeg_path,
+            "-y",
+            "-i", input_path,
+            # Output 1: MP4 (Video and Audio)
+            "-map", "0:v",
+            "-map", "0:a",
+            "-filter:v", f"fps=fps={config.VIDEO_FRAMERATE}",
+            "-c:v", config.VIDEO_CODEC,
+            "-crf", str(config.VIDEO_CRF),
+            "-preset", config.VIDEO_PRESET,
+            "-tune", config.VIDEO_TUNE,
+            "-c:a", config.AUDIO_CODEC,
+            "-b:a", config.AUDIO_BITRATE,
+            "-pix_fmt", config.VIDEO_PIX_FMT,
+            "-progress", "pipe:1",
+            output_path,
+            # Output 2: MP3 (Audio only)
+            "-map", "0:a",
+            "-c:a", "libmp3lame",
+            "-b:a", getattr(config, "AUDIO_MP3_BITRATE", "128k"),
+            mp3_output_path
+        ]
+        
+        return self._run_ffmpeg_command(cmd, output_path, total_duration, progress_callback=progress_callback)
+
+    def _run_ffmpeg_command(self, cmd: list, output_path: str, total_duration: float, progress_callback=None) -> bool:
+        """Executes an FFmpeg command tracking progress and handling errors safely."""
+        logger.info(f"Running FFmpeg command: {' '.join(cmd)}")
         stderr_file_path = output_path + ".ffmpeg.err"
         try:
             # Spawn FFmpeg and capture progress in real-time
@@ -171,15 +234,6 @@ class MediaProcessor:
                 return False
                 
             logger.info(f"FFmpeg command completed successfully. Saved to {output_path}")
-            
-            # Clean up temporary files upon success
-            try:
-                os.remove(video_path)
-                os.remove(audio_path)
-                logger.info("Temporary recording files removed.")
-            except Exception as cleanup_err:
-                logger.warning(f"Failed to remove temporary files: {cleanup_err}")
-                
             return True
             
         except Exception as e:

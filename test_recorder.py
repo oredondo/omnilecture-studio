@@ -189,3 +189,38 @@ class TestMediaProcessor:
         # Verify temp files cleanup
         mock_remove.assert_any_call("v.webm")
         mock_remove.assert_any_call("a.ogg")
+
+    @patch('shutil.which')
+    @patch('os.path.exists')
+    @patch('subprocess.Popen')
+    @patch('subprocess.run')
+    def test_compress_video_success(self, mock_run, mock_popen, mock_exists, mock_which):
+        # Mock FFmpeg found and file present
+        mock_which.return_value = "/usr/bin/ffmpeg"
+        mock_exists.return_value = True
+
+        mock_duration_result = MagicMock()
+        mock_duration_result.stdout = "120.0"
+        mock_run.return_value = mock_duration_result
+
+        mock_process = MagicMock()
+        mock_process.stdout.readline.return_value = ""
+        mock_process.communicate.return_value = ("", "")
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
+
+        processor = MediaProcessor()
+        success = processor.compress_video("input.mp4", "out.mp4")
+
+        assert success is True
+        mock_popen.assert_called_once()
+        cmd_arg = mock_popen.call_args[0][0]
+
+        assert "/usr/bin/ffmpeg" in cmd_arg
+        assert "-i" in cmd_arg
+        assert "input.mp4" in cmd_arg
+        assert "-crf" in cmd_arg
+        assert str(config.VIDEO_CRF) in cmd_arg
+        assert config.VIDEO_PRESET in cmd_arg
+        assert "libmp3lame" in cmd_arg
+        assert getattr(config, "AUDIO_MP3_BITRATE", "128k") in cmd_arg

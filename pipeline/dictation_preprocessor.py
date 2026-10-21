@@ -1,7 +1,9 @@
 import re
 
+
 class DictationPreprocessor:
-    """Preprocesses raw speech-to-text dictation with deterministic rules for spoken punctuation and formatting commands."""
+    """Preprocesses raw speech-to-text dictation with deterministic rules
+    for spoken punctuation, formatting commands, and phonetic spelling artifacts."""
 
     @staticmethod
     def remove_repetition_loops(text: str) -> str:
@@ -13,7 +15,7 @@ class DictationPreprocessor:
             re.compile(r"^\s*gracias\.?\s*$", re.IGNORECASE),
             re.compile(r"^\s*(?:subt[ií]tulos|transcripci[oó]n)\s+(?:por|realizados).*$", re.IGNORECASE),
         ]
-        filtered = [l for l in lines if not any(p.match(l) for p in hallucination_patterns)]
+        filtered = [line for line in lines if not any(p.match(line) for p in hallucination_patterns)]
 
         # Collapse consecutive duplicate lines
         deduped = []
@@ -33,18 +35,19 @@ class DictationPreprocessor:
             matched = False
             for k in range(1, 5):
                 if i + 2 * k <= len(deduped):
-                    pattern = [l.strip().lower() for l in deduped[i : i + k]]
+                    pattern = [line.strip().lower() for line in deduped[i:i + k]]
                     if all(not p for p in pattern):
                         continue
                     repeats = 1
                     while i + (repeats + 1) * k <= len(deduped):
-                        next_pattern = [l.strip().lower() for l in deduped[i + repeats * k : i + (repeats + 1) * k]]
+                        next_slice = deduped[i + repeats * k:i + (repeats + 1) * k]
+                        next_pattern = [line.strip().lower() for line in next_slice]
                         if next_pattern == pattern:
                             repeats += 1
                         else:
                             break
                     if repeats > 1:
-                        final_lines.extend(deduped[i : i + k])
+                        final_lines.extend(deduped[i:i + k])
                         i += repeats * k
                         matched = True
                         break
@@ -55,11 +58,58 @@ class DictationPreprocessor:
         return "\n".join(final_lines)
 
     @staticmethod
+    def normalize_spelled_sequences(text: str) -> str:
+        """Normalizes Spanish spoken letter names transcribed phonetically by Whisper inside spelled words."""
+        if not text:
+            return ""
+
+        cleaned = text
+
+        # 'H-A-P-P-I, griega' -> 'H-A-P-P-Y' (Whisper splits 'i griega' into '-I, griega')
+        cleaned = re.sub(
+            r'(?i)\b([A-Z])[-,.\s]+I[,.\s]+(?:y\s+)?(?:grieg[a-z]+|grieban)\b',
+            r'\1-Y',
+            cleaned
+        )
+        # 'F, F y grieban' or 'A-B y griega' -> 'F, F-Y' / 'A-B-Y'
+        cleaned = re.sub(
+            r'(?i)\b([A-Z])[-,.\s]+(?:y\s+|i\s+)?(?:grieg[a-z]+|grieban)\b',
+            r'\1-Y',
+            cleaned
+        )
+        # 'B-U-L-L-I-Y-N y latina N-G' -> 'B-U-L-L-I-Y-N-I-N-G'
+        cleaned = re.sub(
+            r'(?i)\b([A-Z])[-,.\s]+(?:y\s+|i\s+)latina[-,.\s]+(?=[A-Z]\b)',
+            r'\1-I-',
+            cleaned
+        )
+        # 'B-O-R-R-E-L-L-I. Latina' -> 'B-O-R-R-E-L-L-I'
+        cleaned = re.sub(
+            r'(?i)(?<=-I)[,.\s]+(?:y\s+|i\s+)?latina\b',
+            '',
+            cleaned
+        )
+        # 'M-A-S-I-N-O-U-D-Oble' or 'uve doble' / 'doble uve' in spelled sequences -> '-W'
+        cleaned = re.sub(
+            r'(?i)(?<=[A-Z])-(?:U-?D-?Oble|D-?Oble|uve\s+doble|doble\s+uve)\b',
+            '-W',
+            cleaned
+        )
+        cleaned = re.sub(
+            r'(?i)\b(?:uve\s+doble|doble\s+uve)\b',
+            'W',
+            cleaned
+        )
+
+        return cleaned
+
+    @staticmethod
     def process(text: str) -> str:
         if not text:
             return ""
 
         cleaned = DictationPreprocessor.remove_repetition_loops(text)
+        cleaned = DictationPreprocessor.normalize_spelled_sequences(cleaned)
 
         # 1. Spoken Punctuation: Dos puntos
         cleaned = re.sub(r'(?i)\b(?:dos\s+puntos)\b', ':', cleaned)
@@ -90,8 +140,12 @@ class DictationPreprocessor:
         )
 
         # 7. Common Whisper phonetic deformities of "entre paréntesis"
+        deformities_pat = (
+            r'(?i)\b(?:de\s+p[aá]nterismo|en\s+debarentesis|'
+            r'un\s+trepar[eé]ntesis|improbarentes|entreparece)\s+([^,.;\n]+?)(?=[,.;\n]|$)'
+        )
         cleaned = re.sub(
-            r'(?i)\b(?:de\s+p[aá]nterismo|en\s+debarentesis|un\s+trepar[eé]ntesis|improbarentes|entreparece)\s+([^,.;\n]+?)(?=[,.;\n]|$)',
+            deformities_pat,
             r'(\1)',
             cleaned
         )
@@ -132,8 +186,13 @@ class DictationPreprocessor:
             '★★',
             cleaned
         )
+        single_ast_pat = (
+            r'(?i)\b(?:vamos\s+a\s+poner\s+(?:aqu[ií][, \t]+)?|'
+            r'a\s+poner\s+(?:en\s+este\s+punto\s+(?:tambi[eé]n\s+)?)?|'
+            r'pon(?:me)?\s+(?:le\s+)?|con\s+)?asteriscos?\b'
+        )
         cleaned = re.sub(
-            r'(?i)\b(?:vamos\s+a\s+poner\s+(?:aqu[ií][, \t]+)?|a\s+poner\s+(?:en\s+este\s+punto\s+(?:tambi[eé]n\s+)?)?|pon(?:me)?\s+(?:le\s+)?|con\s+)?asteriscos?\b',
+            single_ast_pat,
             '★',
             cleaned
         )
@@ -146,15 +205,24 @@ class DictationPreprocessor:
             lambda m: m.group(1).strip().upper(),
             cleaned
         )
-        # Prefix: 'ponme en letras mayúsculas X', 'en letras mayúsculas X', 'con mayúsculares X', 'por letras mayúsculas X'
+        # Prefix: 'ponme en letras mayúsculas X', 'en letras mayúsculas X', etc.
+        upper_prefix_pat = (
+            r'(?i)\b(?:pon(?:me)?\s+en\s+(?:letras\s+)?may[uú]sculas?|'
+            r'en\s+(?:letras\s+)?may[uú]sculas?|con\s+may[uú]sculares|'
+            r'por\s+letras\s+may[uú]sculas?)\b[ \t]*[:\-]?[ \t]*([^,.;\n]+?)(?=[,.;\n]|$)'
+        )
         cleaned = re.sub(
-            r'(?i)\b(?:pon(?:me)?\s+en\s+(?:letras\s+)?may[uú]sculas?|en\s+(?:letras\s+)?may[uú]sculas?|con\s+may[uú]sculares|por\s+letras\s+may[uú]sculas?)\b[ \t]*[:\-]?[ \t]*([^,.;\n]+?)(?=[,.;\n]|$)',
+            upper_prefix_pat,
             lambda m: m.group(1).strip().upper(),
             cleaned
         )
         # Suffix: 'X, en letras mayúsculas' or 'X en letras mayúsculas' (excluding 'pon/ponme' as X)
+        upper_suffix_pat = (
+            r'(?i)\b(?!(?:pon|ponme|poner|p[oó]nlo)\b)([^,.;:\n]+?)'
+            r'[, \t]+(?:p[oó]n(?:me)?(?:lo)?\s+)?en\s+(?:letras\s+)?may[uú]sculas?\b'
+        )
         cleaned = re.sub(
-            r'(?i)\b(?!(?:pon|ponme|poner|p[oó]nlo)\b)([^,.;:\n]+?)[, \t]+(?:p[oó]n(?:me)?(?:lo)?\s+)?en\s+(?:letras\s+)?may[uú]sculas?\b',
+            upper_suffix_pat,
             lambda m: m.group(1).strip().upper(),
             cleaned
         )

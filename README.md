@@ -24,10 +24,10 @@ Build a multi-purpose automation utility tailored for Linux desktop environments
    * **Faithful Graphic Rendering**: Translates handwritten layouts into Markdown with headings, bullet lists, Markdown comparison tables, LaTeX mathematical formulas ($...$), and Mermaid diagrams (```mermaid ...) for hand-drawn schemas.
 
 4. **Voice Dictation Notes Pipeline**:
-   * **Speech-to-Text Transcription**: Transcribes student voice dictation audio files (`.wav`, `.mp3`, `.flac`, `.ogg`) directly using local offline Whisper IA (`faster-whisper`).
+   * **Speech-to-Text Transcription**: Transcribes student voice dictation audio files (`.wav`, `.mp3`, `.flac`, `.ogg`) directly using remote Leria Whisper API or local offline Whisper IA (`faster-whisper`).
    * **Noise & Silence Filtering**: Automatically filters out ambient background noise (FFT denoiser `afftdn` + speech bandpass 100Hz-4000Hz) and strips pauses (`silenceremove`).
    * **Ultra-Light MP3 Encoding**: Compresses speech audio down to mono 32 kbps (22.05 kHz) for minimal file size.
-   * **AI Formatting & Structuring**: Cleans phonetic errors/hesitation words and structures the dictation into formatted Markdown study notes.
+   * **AI Formatting & Structuring**: Cleans phonetic errors, spoken punctuation, and hesitation words; normalizes and reconstructs spelled-out authors/acronyms without leaving literal letter-by-letter hyphens; generates a mandatory initial simple outline (`## Esquema General de Contenidos`); and formats requested/comparative Markdown tables with hierarchical points and subpoints (`<br>• ` / `<br>  - `) inside columns while strictly preventing table content duplication elsewhere in the notes.
 
 ---
 
@@ -39,10 +39,9 @@ Build a multi-purpose automation utility tailored for Linux desktop environments
 
 ### 2. File Naming & Directory Organization
 * Video & Audio files: Saved as `YYYYMMDD_HHMM.mp4` and `YYYYMMDD_HHMM.mp3` in `OUTPUT_DIR`.
-* Study Notes & Anki Flashcards: Saved under `OUTPUT_DIR/apuntes/` (`apuntes_EIR.md` and `apuntes_EIR.docx`, `anki_cards.csv`, and raw text/docx files under `bruto/`).
-* Handwritten Notes: Saved under `OUTPUT_DIR/apuntes_manuscritos/` (`YYYYMMDD_HHMM_manuscrito.md` and `YYYYMMDD_HHMM_manuscrito.docx`, and raw text/docx files under `bruto/`).
-* Voice Dictation Notes: Saved under `OUTPUT_DIR/apuntes_dictados/` (`YYYYMMDD_HHMM_dictado.md` and `YYYYMMDD_HHMM_dictado.docx`, and raw text/docx files under `bruto/`).
-* Automatic DOCX Export: Every generated `.md` or `.txt` file automatically generates its corresponding Word `.docx` file preserving headers, bolding, lists, and code blocks.
+* Study Notes & Anki Flashcards: Saved under `OUTPUT_DIR/apuntes/` (`apuntes_EIR.md`, `anki_cards.csv`, and raw text files under `bruto/`).
+* Handwritten Notes: Saved under `OUTPUT_DIR/apuntes_manuscritos/` (`YYYYMMDD_HHMM_manuscrito.md`, and raw text files under `bruto/`).
+* Voice Dictation Notes: Saved under `OUTPUT_DIR/apuntes_dictados/` (`YYYYMMDD_HHMM_dictado.md`, and raw text files under `bruto/`).
 
 ### 3. High Quality, Low Memory & Compression
 * **Readability**: Video compression tuned for slide sharing (10 FPS, H.264 stillimage).

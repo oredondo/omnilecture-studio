@@ -40,10 +40,15 @@ class VoiceDictationNotesGenerator:
         clean_noise: bool = True,
         remove_silence: bool = True
     ) -> str:
-        """Compresses audio into an ultra-lightweight mono MP3 (32 kbps, 22.05 kHz) while cleaning noise and removing silence."""
         if not output_mp3_path:
-            now = datetime.now()
-            output_mp3_path = os.path.join(self.raw_dir, f"{now.strftime('%Y%m%d_%H%M%S')}_dictado_min.mp3")
+            base_name = os.path.splitext(os.path.basename(input_audio_path))[0]
+            if base_name.endswith("_raw"):
+                mp3_name = f"{base_name[:-4]}_min.mp3"
+            elif not base_name.endswith("_min"):
+                mp3_name = f"{base_name}_min.mp3"
+            else:
+                mp3_name = f"{base_name}.mp3"
+            output_mp3_path = os.path.join(self.raw_dir, mp3_name)
 
         audio_filters = []
         if clean_noise:
@@ -81,9 +86,13 @@ class VoiceDictationNotesGenerator:
         dictation_prompt = (
             "Dictado estructurado de apuntes docentes y de estudio de enfermería para la oposición EIR. "
             "Terminología médica, epidemiología, enfermedades infecciosas, farmacología, salud pública, "
-            "ciencias psicosociales (memoria, pensamiento, lenguaje, inteligencia, modelos de Atkinson, "
-            "Shiffrin, Tulving, Ebbinghaus, Brown-Peterson, Spearman, Cattell, Horn, Sternberg, Salovey, "
-            "Mayer, Piaget, Skinner, Chomsky, Vygotsky, Wechsler, Jane Mercer, SEMPA) y endocrinología."
+            "ciencias psicosociales (memoria, pensamiento, lenguaje, inteligencia, duelo, estrés, comunicación, "
+            "violencia, modelos de Atkinson, Shiffrin, Tulving, Ebbinghaus, Brown-Peterson, Spearman, Cattell, "
+            "Horn, Sternberg, Salovey, Mayer, Piaget, Beck, Ellis, Skinner, Chomsky, Vygotsky, Wechsler, "
+            "Jane Mercer, SEMPA, Buckman, SPIKES, Borrell i Carrió, Bowlby, Parkes, Robertson, Kübler-Ross, "
+            "Worden, Lazarus, Folkman, Selye, Maslach, Burnout, Freudenberger, Leymann, Mobbing, Olweus, "
+            "Bullying, Bertalanffy, Wiener, Watzlawick, Pichon-Rivière, Peplau, Carl Rogers, Snyder, "
+            "Kretschmer, Eysenck, McCrae, Münchausen) y endocrinología."
         )
         transcriber = AudioTranscriber(
             audio_path,
@@ -104,7 +113,9 @@ class VoiceDictationNotesGenerator:
                 pass
 
         if not raw_text:
-            raise ValueError("No se detectó voz inteligible en el audio. Asegúrate de hablar claro y cerca del micrófono.")
+            raise ValueError(
+                "No se detectó voz inteligible en el audio. Asegúrate de hablar claro y cerca del micrófono."
+            )
 
         logger.info(f"Whisper {mode_str} transcription completed successfully.")
         return raw_text
@@ -129,7 +140,11 @@ class VoiceDictationNotesGenerator:
         preprocessed_text = DictationPreprocessor.process(dictation_text)
 
         from pipeline.dictation_chunker import DictationChunker, DictationAssembler
-        chunks = DictationChunker.split(preprocessed_text)
+        chunks = DictationChunker.split(
+            preprocessed_text,
+            target_chunk_words=1800,
+            min_threshold_words=2800
+        )
         num_chunks = len(chunks)
         total_words = len(preprocessed_text.split())
         logger.info(f"Dictation pre-node divided input into {num_chunks} chunk(s) (total words: {total_words}).")
@@ -143,10 +158,18 @@ class VoiceDictationNotesGenerator:
                     progress = 0.50 + (i / num_chunks) * 0.38
                     status_callback(f"Procesando bloque temático {i+1} de {num_chunks} con IA...", progress)
 
-                chunk_user_content = (
-                    f"--- BLOQUE TEMÁTICO {i+1} DE {num_chunks} DEL DICTADO ---\n\n"
-                    f"{chunk_content}"
-                )
+                if i == 0:
+                    chunk_user_content = (
+                        f"--- BLOQUE TEMÁTICO 1 DE {num_chunks} DEL DICTADO "
+                        f"(INCLUIR # TÍTULO PRINCIPAL Y ## ESQUEMA GENERAL DE CONTENIDOS AL INICIO) ---\n\n"
+                        f"{chunk_content}"
+                    )
+                else:
+                    chunk_user_content = (
+                        f"--- BLOQUE TEMÁTICO {i+1} DE {num_chunks} DEL DICTADO "
+                        f"(CONTINUACIÓN DIRECTA: NO REPETIR # TÍTULO PRINCIPAL NI ## ESQUEMA GENERAL) ---\n\n"
+                        f"{chunk_content}"
+                    )
             else:
                 logger.info("Sending preprocessed dictation to LLM for structured notes generation...")
                 if status_callback:
@@ -164,7 +187,7 @@ class VoiceDictationNotesGenerator:
                 status_callback("Ensamblando y consolidando apuntes temáticos...", 0.90)
             formatted_notes = DictationAssembler.assemble(chunk_notes_list)
         else:
-            formatted_notes = chunk_notes_list[0]
+            formatted_notes = DictationAssembler.clean_generated_markdown(chunk_notes_list[0])
 
         md_filename = f"{timestamp}_dictado.md"
         md_path = os.path.join(self.output_dir, md_filename)
@@ -172,14 +195,10 @@ class VoiceDictationNotesGenerator:
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(formatted_notes)
 
-        from pipeline.docx_exporter import DocxExporter
-        DocxExporter.convert_file(md_path)
-        DocxExporter.convert_file(raw_text_path)
-
         if status_callback:
-            status_callback("¡Apuntes de dictado generados con éxito en .md y .docx!", 1.0)
+            status_callback("¡Apuntes de dictado generados con éxito!", 1.0)
 
-        logger.info(f"Dictation study notes saved to: {md_path} and .docx equivalent")
+        logger.info(f"Dictation study notes saved to: {md_path}")
         return md_path, raw_text_path
 
     def run_from_audio(self, audio_path: str, status_callback=None) -> tuple[str, str, str]:
@@ -199,6 +218,18 @@ class VoiceDictationNotesGenerator:
             status_callback("Guardando copia de seguridad en MP3 comprimido (32k mono)...", 0.85)
 
         backup_mp3_path = self.compress_to_ultra_light_mp3(audio_path)
+
+        # Si el audio de entrada es un WAV o se encuentra en TEMP_DIR, eliminarlo tras comprimir a MP3
+        if backup_mp3_path and os.path.exists(backup_mp3_path) and os.path.getsize(backup_mp3_path) > 0:
+            if audio_path and os.path.exists(audio_path) and audio_path != backup_mp3_path:
+                is_in_temp = os.path.abspath(audio_path).startswith(os.path.abspath(config.TEMP_DIR))
+                is_wav = audio_path.lower().endswith(".wav")
+                if is_in_temp or is_wav:
+                    try:
+                        os.remove(audio_path)
+                        logger.info(f"Eliminado archivo temporal/WAV tras comprimir a MP3: {audio_path}")
+                    except Exception as e:
+                        logger.warning(f"No se pudo eliminar el archivo temporal {audio_path}: {e}")
 
         if status_callback:
             status_callback("¡Dictado procesado y respaldado con éxito!", 1.0)

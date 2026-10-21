@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 # Ensure project directory is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-from pipeline.dictation_notes import VoiceDictationNotesGenerator
+from pipeline.dictation_notes import VoiceDictationNotesGenerator  # noqa: E402
 
 
 class TestVoiceDictationNotesGenerator:
@@ -75,6 +75,14 @@ class TestVoiceDictationNotesGenerator:
         assert "32k" in cmd
         assert "22050" in cmd
 
+    @patch('subprocess.run')
+    def test_compress_to_ultra_light_mp3_default_naming(self, mock_subproc):
+        temp_dir = tempfile.mkdtemp()
+        generator = VoiceDictationNotesGenerator(output_dir=temp_dir)
+        out_mp3 = generator.compress_to_ultra_light_mp3("20261010_120000_dictado_raw.wav")
+        expected_path = os.path.join(generator.raw_dir, "20261010_120000_dictado_min.mp3")
+        assert out_mp3 == expected_path
+
     @patch('gi.repository.Gst.init')
     @patch('gi.repository.Gst.parse_launch')
     @patch('audio_recorder.AudioRecorder._discover_devices')
@@ -140,6 +148,34 @@ class TestVoiceDictationNotesGenerator:
         mock_transcribe.assert_called_once_with("input.wav")
         mock_compress.assert_called_once_with("input.wav")
 
+    @patch('pipeline.dictation_notes.VoiceDictationNotesGenerator.compress_to_ultra_light_mp3')
+    @patch('pipeline.dictation_notes.VoiceDictationNotesGenerator.transcribe_audio_file')
+    @patch('pipeline.dictation_notes.LLMManager')
+    def test_run_from_audio_deletes_raw_wav(self, mock_llm_cls, mock_transcribe, mock_compress):
+        mock_transcribe.return_value = "Texto dictado para prueba de borrado"
+        mock_llm = MagicMock()
+        mock_llm.process_node.return_value = "# Apuntes"
+        mock_llm_cls.return_value = mock_llm
+
+        temp_dir = tempfile.mkdtemp()
+        dummy_wav = os.path.join(temp_dir, "dictado_raw.wav")
+        with open(dummy_wav, "wb") as f:
+            f.write(b"RIFF dummy wav")
+
+        dummy_mp3 = os.path.join(temp_dir, "dictado_min.mp3")
+        with open(dummy_mp3, "wb") as f:
+            f.write(b"dummy mp3 data")
+
+        mock_compress.return_value = dummy_mp3
+
+        generator = VoiceDictationNotesGenerator(output_dir=temp_dir)
+        generator.llm_manager = mock_llm
+
+        md_path, raw_path, backup_mp3 = generator.run_from_audio(dummy_wav)
+
+        assert os.path.exists(dummy_mp3)
+        assert not os.path.exists(dummy_wav)
+
     @patch('pipeline.dictation_notes.LLMManager')
     def test_dictation_generator_uses_temperature_zero(self, mock_llm_cls):
         temp_dir = tempfile.mkdtemp()
@@ -172,6 +208,16 @@ class TestVoiceDictationNotesGenerator:
     def test_dictation_prompt_empirical_rules(self):
         from pipeline.prompts import DICTATION_NOTES_PROMPT
         assert "ELIMINACIÓN TOTAL DE COMANDOS DE VOZ" in DICTATION_NOTES_PROMPT
+        assert "ESQUEMA CLÁSICO Y SIMPLE POR PUNTOS Y SUBPUNTOS" in DICTATION_NOTES_PROMPT
+        assert "## Esquema General de Contenidos" in DICTATION_NOTES_PROMPT
+        assert "PUNTOS Y SUBPUNTOS DENTRO DE LAS COLUMNAS" in DICTATION_NOTES_PROMPT
+        assert "<br>" in DICTATION_NOTES_PROMPT
+        assert (
+            "PROHIBICIÓN ABSOLUTA DE REPETIR EL TEXTO DE UNA TABLA EN OTRA PARTE DE LOS APUNTES"
+            in DICTATION_NOTES_PROMPT
+        )
+        assert "DELETREO FONÉTICO INTELIGENTE" in DICTATION_NOTES_PROMPT
+        assert "PROHIBIDO DEJAR `A-B-C-D` EN LOS APUNTES" in DICTATION_NOTES_PROMPT
         assert "CORRECCIÓN FONÉTICA" in DICTATION_NOTES_PROMPT
         assert "ESTRUCTURA Y FORMATO" in DICTATION_NOTES_PROMPT
 
@@ -223,13 +269,31 @@ class TestDictationPreprocessor:
             "Para el control de síntomas.\n"
         )
         cleaned = DictationPreprocessor.remove_repetition_loops(raw)
-        lines = [l for l in cleaned.splitlines() if l.strip()]
+        lines = [line for line in cleaned.splitlines() if line.strip()]
         assert lines == [
             "Es un proceso de la respiración.",
             "Diagnóstico de certeza.",
             "Base de tratamiento.",
             "Para el control de síntomas."
         ]
+
+    def test_normalize_spelled_sequences(self):
+        from pipeline.dictation_preprocessor import DictationPreprocessor
+        res1 = DictationPreprocessor.process("H-A-P-P-I, griega, S-L-A-P-P-I-N-G")
+        assert "H-A-P-P-Y" in res1
+
+        res2 = DictationPreprocessor.process("B-U-L-L-I-Y-N y latina N-G")
+        assert "B-U-L-L-I-Y-N-I-N-G" in res2
+
+        res3 = DictationPreprocessor.process("M-A-S-I-N-O-U-D-Oble")
+        assert "M-A-S-I-N-O-W" in res3
+
+        res4 = DictationPreprocessor.process("B, D, A, R, D, T, A, L, A, N, F, F y grieban")
+        assert "F-Y" in res4
+
+        res5 = DictationPreprocessor.process("B-O-R-R-E-L-L-I. Latina y C-A-R-R-I-O")
+        assert "B-O-R-R-E-L-L-I" in res5
+        assert "latina" not in res5.lower()
 
     def test_spoken_formatting_mayusculas(self):
         from pipeline.dictation_preprocessor import DictationPreprocessor
@@ -338,6 +402,15 @@ class TestDictationChunkerAndAssembler:
         assert "¿Cuál es el vector de la peste?" in assembled
         assert "¿Cuál es el vector del tifus exantémico?" in assembled
 
+    def test_clean_generated_markdown_strips_literal_spellings(self):
+        from pipeline.dictation_chunker import DictationAssembler
+        md = "Autor: **Caplan** (C-A-P-L-A-N) y escala **LIPT-60** de **Leymann** (L-E-Y-M-A-N-N)."
+        cleaned = DictationAssembler.clean_generated_markdown(md)
+        assert "(C-A-P-L-A-N)" not in cleaned
+        assert "(L-E-Y-M-A-N-N)" not in cleaned
+        assert "**Caplan**" in cleaned
+        assert "**LIPT-60**" in cleaned
+
     @patch('pipeline.dictation_notes.LLMManager')
     def test_generate_notes_from_long_text_multi_chunk(self, mock_llm_cls):
         from pipeline.dictation_notes import VoiceDictationNotesGenerator
@@ -345,8 +418,14 @@ class TestDictationChunkerAndAssembler:
         mock_llm_instance = MagicMock()
         # Mock chunk 1 and chunk 2 responses
         mock_llm_instance.process_node.side_effect = [
-            "---\ntitle: Dictado EIR\n---\n\n## Bloque 1\n* Concepto 1\n\n## Cuestionario de Autoevaluación\n> [!question]- P1?",
-            "---\ntitle: Dictado EIR Parte 2\n---\n\n## Bloque 2\n* Concepto 2\n\n## Cuestionario de Autoevaluación\n> [!question]- P2?"
+            (
+                "---\ntitle: Dictado EIR\n---\n\n## Bloque 1\n* Concepto 1\n\n"
+                "## Cuestionario de Autoevaluación\n> [!question]- P1?"
+            ),
+            (
+                "---\ntitle: Dictado EIR Parte 2\n---\n\n## Bloque 2\n* Concepto 2\n\n"
+                "## Cuestionario de Autoevaluación\n> [!question]- P2?"
+            ),
         ]
         mock_llm_cls.return_value = mock_llm_instance
 
@@ -354,14 +433,15 @@ class TestDictationChunkerAndAssembler:
         generator = VoiceDictationNotesGenerator(output_dir=temp_dir)
         generator.llm_manager = mock_llm_instance
 
-        # Create a text with ~1700 words to trigger exactly 2 chunks
+        # Create a text with ~3100 words to trigger 2 chunks above 2800-word threshold
         long_dictation = (
-            ("Tema uno sobre el método Hanlon y priorización de problemas de salud. " * 80) +
+            ("Tema uno sobre el método Hanlon y priorización de problemas de salud. " * 150) +
             "\n\nSiguiente tema pasamos a la matriz DAFO y la planificación estratégica. " +
-            ("Detalles sobre fortalezas, debilidades, oportunidades y amenazas. " * 100)
+            ("Detalles sobre fortalezas, debilidades, oportunidades y amenazas. " * 170)
         )
 
         callback_msgs = []
+
         def status_cb(msg, progress):
             callback_msgs.append((msg, progress))
 
@@ -383,6 +463,3 @@ class TestDictationChunkerAndAssembler:
         # Check status callback received chunk notifications
         chunk_updates = [m for m, p in callback_msgs if "bloque temático" in m.lower()]
         assert len(chunk_updates) >= 2
-
-
-

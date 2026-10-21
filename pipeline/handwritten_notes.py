@@ -177,10 +177,6 @@ class HandwrittenNotesGenerator:
         output_raw_path = os.path.join(bruto_dir, f"{timestamp_str}_manuscrito_bruto.txt")
         shutil.copy(raw_ocr_path, output_raw_path)
 
-        # Export .docx documents for handwritten notes
-        from pipeline.docx_exporter import DocxExporter
-        DocxExporter.convert_file(output_md_path)
-        DocxExporter.convert_file(output_raw_path)
 
         # Cleanup workspace
         try:

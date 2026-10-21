@@ -83,3 +83,14 @@ Whenever you introduce a new feature, change a configuration option, edit GUI ta
 ## 🌍 7. Language Policy
 
 * **English Only**: All source code, variable/class names, UI text, logs, console print messages, comments, commit messages, and documentation (`README.md`, `.cursorrules`, rules) must be written in **English**.
+
+---
+
+## 📝 8. EIR Study Notes & Dictation Processing Rules (Strict Voice Fidelity)
+
+When generating, processing, structuring, editing, or revising study notes from voice dictations or OCR:
+1. **Zero External Invention (Anti-Hallucination)**: Strictly preserve only the facts, theories, classifications, authors, and data that were dictated. Never invent clinical theories or add filler content.
+2. **Sequential Outline & Full Integration**: If the user provides an initial outline or numbered list (e.g., 1 to 9), structure the resulting document following that exact sequential order. Never fragment topics into duplicate top-level `#` titles or write notes claiming points were omitted.
+3. **Respect User Manual Modifications**: When refining an existing document, preserve and prioritize any manual corrections, author attributions, or notes made by the user. Never overwrite user-corrected content with automated guesses.
+4. **Exhaustive Data Coverage**: Thoroughly check raw transcripts and audio for all dictated authors, study populations, statistics, mnemonic rules (e.g., F=I=S), scales, and clinical distinctions.
+5. **Formatting Rules**: Faithfully apply spoken formatting cues: CAPITAL LETTERS, priority stars (★ / ★★), callouts (`> [!IMPORTANT]`), and clean Markdown tables with blank lines before and after.

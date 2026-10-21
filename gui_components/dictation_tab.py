@@ -147,9 +147,8 @@ class DictationTab(Gtk.Box):
 
     def on_rec_clicked(self, widget):
         now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        raw_dir = os.path.join(config.OUTPUT_DIR, "apuntes_dictados", "bruto")
-        os.makedirs(raw_dir, exist_ok=True)
-        audio_temp_path = os.path.join(raw_dir, f"{now_str}_dictado_raw.wav")
+        os.makedirs(config.TEMP_DIR, exist_ok=True)
+        audio_temp_path = os.path.join(config.TEMP_DIR, f"{now_str}_dictado_raw.wav")
 
         self.audio_recorder = AudioRecorder(output_path=audio_temp_path, mic_only=True)
         if not self.audio_recorder.start():
@@ -220,6 +219,11 @@ class DictationTab(Gtk.Box):
                 "Por favor, habla al menos 3-5 segundos para procesar el dictado."
             )
             self.status_label.set_text("Grabación cancelada (duración < 2 segundos).")
+            if temp_audio_file and os.path.exists(temp_audio_file):
+                try:
+                    os.remove(temp_audio_file)
+                except OSError:
+                    pass
             return
 
         self.btn_rec.set_sensitive(False)
@@ -249,11 +253,21 @@ class DictationTab(Gtk.Box):
 
             md_path, raw_text_path, backup_mp3 = generator.run_from_file(input_file, status_callback=progress_cb)
 
+            # Si el archivo de entrada estaba en TEMP_DIR o es un WAV residual, asegurar su eliminación
+            if input_file and os.path.exists(input_file):
+                is_temp = os.path.abspath(input_file).startswith(os.path.abspath(config.TEMP_DIR))
+                is_wav = input_file.lower().endswith(".wav")
+                if is_temp or is_wav:
+                    try:
+                        os.remove(input_file)
+                        logger.info(f"Audio temporal de dictado eliminado: {input_file}")
+                    except OSError:
+                        pass
+
             if backup_mp3:
                 status_msg = (
                     f"¡Apuntes generados exitosamente!\n"
-                    f"Audio Original: {os.path.basename(input_file)}\n"
-                    f"Audio MP3: {os.path.basename(backup_mp3)}"
+                    f"Audio MP3 comprimido: {os.path.basename(backup_mp3)}"
                 )
             else:
                 status_msg = (

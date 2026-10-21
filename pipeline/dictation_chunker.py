@@ -1,5 +1,4 @@
 import re
-import math
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,7 +12,11 @@ class DictationChunker:
     TARGET_CHUNK_WORDS = 1100
 
     TRANSITION_CUES = [
-        r"(?i)\b(?:siguiente\s+tema|pasamos\s+a(?:l)?|vamos\s+ahora\s+con|otro\s+tema|cambiando\s+de\s+tema|a\s+continuaci[oó]n|por\s+otro\s+lado|respecto\s+a(?:l)?|en\s+cuanto\s+a)\b",
+        (
+            r"(?i)\b(?:siguiente\s+tema|pasamos\s+a(?:l)?|vamos\s+ahora\s+con|"
+            r"otro\s+tema|cambiando\s+de\s+tema|a\s+continuaci[oó]n|"
+            r"por\s+otro\s+lado|respecto\s+a(?:l)?|en\s+cuanto\s+a)\b"
+        ),
     ]
 
     @classmethod
@@ -35,7 +38,8 @@ class DictationChunker:
         words_per_chunk = total_words / num_chunks
 
         logger.info(
-            f"DictationChunker: Dividing {total_words} words into {num_chunks} chunks (~{int(words_per_chunk)} words each)."
+            f"DictationChunker: Dividing {total_words} words into {num_chunks} chunks "
+            f"(~{int(words_per_chunk)} words each)."
         )
 
         chunks = []
@@ -97,7 +101,7 @@ class DictationChunker:
         for m in re.finditer(r'\n\s*\n', window):
             abs_pos = start + m.end()
             dist = abs(abs_pos - ideal)
-            following = text[abs_pos : abs_pos + 80]
+            following = text[abs_pos:abs_pos + 80]
             has_cue = any(re.search(pat, following) for pat in cls.TRANSITION_CUES)
             score = dist - 800 if has_cue else dist
             if score < best_para_score:
@@ -113,7 +117,7 @@ class DictationChunker:
         for pattern in cls.TRANSITION_CUES:
             for m in re.finditer(pattern, window):
                 cue_start = start + m.start()
-                pre_text = text[max(0, cue_start - 80) : cue_start]
+                pre_text = text[max(0, cue_start - 80):cue_start]
                 sent_match = re.search(r'(?:\.\s+|\n\s*|^)([^\.\n]*)$', pre_text)
                 if sent_match and sent_match.group(1):
                     sentence_start_pos = cue_start - len(sent_match.group(1))
@@ -183,7 +187,11 @@ class DictationAssembler:
     fully-structured Markdown document with consolidated metadata and questionnaire."""
 
     QUESTIONNAIRE_PATTERNS = [
-        r"(?m)^#{2,3}\s+(?:Cuestionario\s+de\s+Autoevaluaci[oó]n|Autoevaluaci[oó]n(?:\s*\(Active\s+Recall\))?|Cuestionario\s+Active\s+Recall)\b",
+        (
+            r"(?m)^#{2,3}\s+(?:Cuestionario\s+de\s+Autoevaluaci[oó]n|"
+            r"Autoevaluaci[oó]n(?:\s*\(Active\s+Recall\))?|"
+            r"Cuestionario\s+Active\s+Recall)\b"
+        ),
     ]
 
     @classmethod
@@ -215,7 +223,6 @@ class DictationAssembler:
                     note_content = parts[2].strip()
 
             # Separate questionnaire section if present
-            found_q = False
             for pattern in cls.QUESTIONNAIRE_PATTERNS:
                 match = re.search(pattern, note_content)
                 if match:
@@ -224,7 +231,6 @@ class DictationAssembler:
                     note_content = body
                     if q_part:
                         all_questions.append(q_part)
-                    found_q = True
                     break
 
             if note_content:
@@ -244,6 +250,70 @@ class DictationAssembler:
             )
 
         final_doc = "\n\n".join(assembled_parts)
+        return cls.clean_generated_markdown(final_doc)
+
+    @staticmethod
+    def _split_outline_subpoints(subs_raw: str) -> list[str]:
+        """Splits a parenthetical subpoint list into individual subpoint items."""
+        raw_parts = [p.strip().rstrip(".") for p in re.split(r"[,;]\s+(?![^()]*\))", subs_raw) if p.strip()]
+        merged = []
+        in_colon_list = False
+        for part in raw_parts:
+            if ":" in part:
+                merged.append(part)
+                in_colon_list = True
+            elif in_colon_list and part and part[0].islower():
+                merged[-1] = f"{merged[-1]}, {part}"
+            else:
+                in_colon_list = False
+                merged.append(part)
+        return merged
+
+    @classmethod
+    def format_classic_outline(cls, md_text: str) -> str:
+        """Ensures ## Esquema General de Contenidos is formatted as a classic vertical outline
+        with numbered main points and indented bullet subpoints."""
+        if not md_text:
+            return ""
+        pattern = re.compile(
+            r"(^##\s+Esquema\s+General\s+de\s+Contenidos\s*\n+)(.*?)(?=\n+(?:---|\#\#\s+))",
+            re.MULTILINE | re.DOTALL
+        )
+
+        def repl(match):
+            header = match.group(1)
+            body = match.group(2).strip()
+            new_lines = []
+            for line in body.splitlines():
+                m = re.match(r"^(\s*\d+\.\s+\*\*[^*]+\*\*(?:[^(\n]*?))\s*\((.+)\)\.?\s*$", line)
+                if m:
+                    main_point = m.group(1).strip().rstrip(":")
+                    subs_raw = m.group(2).strip().rstrip(".")
+                    subs = cls._split_outline_subpoints(subs_raw)
+                    new_lines.append(main_point)
+                    for sub in subs:
+                        s_clean = sub[0].upper() + sub[1:] if sub else sub
+                        new_lines.append(f"   - {s_clean}")
+                else:
+                    new_lines.append(line)
+            return header + "\n".join(new_lines)
+
+        return pattern.sub(repl, md_text, count=1)
+
+    @classmethod
+    def clean_generated_markdown(cls, md_text: str) -> str:
+        """Removes any leftover parenthetical letter-by-letter spellings (e.g. '(C-A-P-L-A-N)'),
+        formats the initial outline into classic points and subpoints, and normalizes spacing."""
+        if not md_text:
+            return ""
+        cleaned = md_text
+        # Remove parenthetical literal spellings of 3+ single uppercase letters separated by hyphens
+        cleaned = re.sub(
+            r'[ \t]*\([A-ZÁÉÍÓÚÑÜ](?:-[A-ZÁÉÍÓÚÑÜ]){2,}\)',
+            '',
+            cleaned
+        )
+        cleaned = cls.format_classic_outline(cleaned)
         # Ensure clean spacing around headers
-        final_doc = re.sub(r'\n{3,}', '\n\n', final_doc)
-        return final_doc.strip()
+        cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+        return cleaned.strip()
