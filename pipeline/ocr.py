@@ -1,9 +1,17 @@
 import os
-import cv2
-import pytesseract
 import logging
 import re
 import sys
+
+try:
+    import cv2
+except ImportError:
+    cv2 = None
+
+try:
+    import pytesseract
+except ImportError:
+    pytesseract = None
 
 # Add parent directory to path to import pipeline_config
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -105,6 +113,11 @@ class VideoOCRExtractor:
 
     def extract_text(self, sample_interval_sec: int = 15) -> str:
         """Samples frames from video at intervals by seeking directly, and runs OCR on changed frames."""
+        if cv2 is None or pytesseract is None:
+            raise ImportError(
+                "OpenCV (opencv-python) and pytesseract are required for VideoOCRExtractor. "
+                "Install them via: pip install 'omnilecture-studio[ocr]'"
+            )
         logger.info(f"Starting OCR extraction on {self.video_path} every {sample_interval_sec}s...")
         
         cap = cv2.VideoCapture(self.video_path)

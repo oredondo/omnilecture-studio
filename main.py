@@ -1,17 +1,9 @@
 import time
 import os
 import sys
-import glob
 import logging
 import signal
 from datetime import datetime
-
-# Auto-inject project's .venv site-packages into sys.path if launched with system python
-_proj_root = os.path.dirname(os.path.abspath(__file__))
-_venv_sites = glob.glob(os.path.join(_proj_root, ".venv", "lib", "python3.*", "site-packages"))
-for _sp in _venv_sites:
-    if _sp not in sys.path:
-        sys.path.insert(0, _sp)
 
 import config
 from detector import ZoomDetector

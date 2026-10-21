@@ -1,13 +1,21 @@
 import os
 import sys
 import time
-import cv2
-import pytesseract
 import logging
 import argparse
 import shutil
 from typing import List, Tuple, Callable, Optional
 from datetime import datetime
+
+try:
+    import cv2
+except ImportError:
+    cv2 = None
+
+try:
+    import pytesseract
+except ImportError:
+    pytesseract = None
 
 # Add project root directory to sys.path to import config and pipeline_config
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -79,6 +87,11 @@ class HandwrittenOCRExtractor:
 
     def extract_all(self, status_callback: Optional[Callable[[str, float], None]] = None) -> Tuple[str, List[str]]:
         """Processes all provided images and returns concatenated raw OCR text and per-page text list."""
+        if pytesseract is None:
+            raise ImportError(
+                "pytesseract is required for HandwrittenOCRExtractor. "
+                "Install it via: pip install 'omnilecture-studio[ocr]'"
+            )
         page_texts = []
         total = len(self.image_paths)
         

@@ -1,15 +1,8 @@
 import os
 import sys
-import glob
 import logging
 
-# Auto-inject project's .venv site-packages into sys.path if launched with system python
-_proj_root = os.path.dirname(os.path.abspath(__file__))
-_venv_sites = glob.glob(os.path.join(_proj_root, ".venv", "lib", "python3.*", "site-packages"))
-for _sp in _venv_sites:
-    if _sp not in sys.path:
-        sys.path.insert(0, _sp)
-
+import config
 import gi
 try:
     gi.require_version('Gtk', '3.0')
@@ -23,8 +16,6 @@ try:
     GLib.set_application_name("Grabador y Apuntes EIR")
 except Exception:
     pass
-
-import config
 from gui_components.dialogs import DialogUtils
 from gui_components.recorder_tab import RecorderTab
 from gui_components.eir_notes_tab import EIRNotesTab

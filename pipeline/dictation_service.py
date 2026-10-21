@@ -23,11 +23,6 @@ _proj_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _proj_root not in sys.path:
     sys.path.insert(0, _proj_root)
 
-# Auto-inject virtual environment site-packages and bin directory
-_venv_bin = os.path.join(_proj_root, ".venv", "bin")
-if os.path.isdir(_venv_bin) and _venv_bin not in os.environ.get("PATH", "").split(os.pathsep):
-    os.environ["PATH"] = _venv_bin + os.pathsep + os.environ.get("PATH", "")
-
 import config
 from pipeline.dictation_notes import VoiceDictationNotesGenerator
 from audio_recorder import AudioRecorder

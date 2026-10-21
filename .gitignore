@@ -6,6 +6,14 @@ ENV/
 env.bak/
 venv.bak/
 
+# Distribución y empaquetado Python
+build/
+dist/
+*.egg-info/
+*.egg
+eggs/
+.eggs/
+
 # Caché de Python y compilados
 __pycache__/
 *.pyc

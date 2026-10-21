@@ -12,15 +12,7 @@ import logging
 import threading
 from datetime import datetime, timedelta
 
-# Auto-inject virtual environment site-packages and bin directory
-_proj_root = os.path.dirname(os.path.abspath(__file__))
-if _proj_root not in sys.path:
-    sys.path.insert(0, _proj_root)
-
-_venv_bin = os.path.join(_proj_root, ".venv", "bin")
-if os.path.isdir(_venv_bin) and _venv_bin not in os.environ.get("PATH", "").split(os.pathsep):
-    os.environ["PATH"] = _venv_bin + os.pathsep + os.environ.get("PATH", "")
-
+import config
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import config

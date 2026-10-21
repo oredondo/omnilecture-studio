@@ -200,8 +200,14 @@ source .venv/bin/activate
 Install Python dependencies inside `.venv`:
 
 ```bash
+# Unified installation via pip
 pip install -r requirements.txt
-pip install -r pipeline/requirements_pipeline.txt
+
+# Or modern editable install with optional feature extras (via pyproject.toml):
+pip install -e ".[all]"
+
+# For development and testing:
+pip install -r requirements-dev.txt
 ```
 
 > **Note**: Both `gui.py`, `main.py`, and `pipeline/__init__.py` automatically detect and inject `.venv` site-packages into `sys.path`, so running scripts directly will transparently use `.venv` packages.

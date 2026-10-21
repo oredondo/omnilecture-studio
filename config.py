@@ -1,5 +1,31 @@
 import os
 import sys
+import glob
+
+# ==============================================================================
+#                  ENVIRONMENT AND PATH INITIALIZATION
+# ==============================================================================
+
+def ensure_environment() -> None:
+    """Prepend project root and .venv site-packages / bin to sys.path and PATH."""
+    proj_root = os.path.dirname(os.path.abspath(__file__))
+    if proj_root not in sys.path:
+        sys.path.insert(0, proj_root)
+
+    venv_bin = os.path.join(proj_root, ".venv", "bin")
+    if os.path.isdir(venv_bin) and venv_bin not in os.environ.get("PATH", "").split(os.pathsep):
+        os.environ["PATH"] = venv_bin + os.pathsep + os.environ.get("PATH", "")
+
+    # Auto-inject project's .venv site-packages into sys.path
+    venv_sites = glob.glob(os.path.join(proj_root, ".venv", "lib", "python3.*", "site-packages"))
+    for sp in venv_sites:
+        if sp not in sys.path:
+            sys.path.insert(0, sp)
+
+
+ensure_environment()
+_proj_root = os.path.dirname(os.path.abspath(__file__))
+
 
 # ==============================================================================
 #                      GENERAL RECORDER CONFIGURATIONS
@@ -10,23 +36,20 @@ if os.path.exists("/home/cristina/Documentos/Zoom"):
     DEFAULT_OUTPUT_DIR = "/home/cristina/Documentos/Zoom"
     DEFAULT_TEMP_DIR = "/home/cristina/Documentos/grabarPantalla/.temp"
 elif sys.platform == "darwin":
-    # On macOS, the standard system directory is ~/Documents (Finder displays it as "Documentos")
     DEFAULT_OUTPUT_DIR = os.path.expanduser("~/Documents/OmniLecture")
-    DEFAULT_TEMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".temp")
+    DEFAULT_TEMP_DIR = os.path.join(_proj_root, ".temp")
 else:
-    docs_base = os.path.expanduser("~/Documentos") if os.path.exists(os.path.expanduser("~/Documentos")) else os.path.expanduser("~/Documents")
+    docs_base = (
+        os.path.expanduser("~/Documentos")
+        if os.path.exists(os.path.expanduser("~/Documentos"))
+        else os.path.expanduser("~/Documents")
+    )
     DEFAULT_OUTPUT_DIR = os.path.join(docs_base, "OmniLecture")
-    DEFAULT_TEMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".temp")
+    DEFAULT_TEMP_DIR = os.path.join(_proj_root, ".temp")
 
 OUTPUT_DIR = os.getenv("OMNILECTURE_OUTPUT_DIR", DEFAULT_OUTPUT_DIR)
 TEMP_DIR = os.getenv("OMNILECTURE_TEMP_DIR", DEFAULT_TEMP_DIR)
 LOG_FILE = os.path.join(OUTPUT_DIR, "zoom_recorder.log")
-
-# Prepend project's .venv/bin to PATH so tools like ffmpeg are immediately found
-_proj_root = os.path.dirname(os.path.abspath(__file__))
-_venv_bin = os.path.join(_proj_root, ".venv", "bin")
-if os.path.isdir(_venv_bin) and _venv_bin not in os.environ.get("PATH", "").split(os.pathsep):
-    os.environ["PATH"] = _venv_bin + os.pathsep + os.environ.get("PATH", "")
 
 # Ensure directories exist
 try:
@@ -40,11 +63,11 @@ except OSError:
     LOG_FILE = os.path.join(OUTPUT_DIR, "zoom_recorder.log")
 
 # Final file name timestamp format (e.g., 20260609_2225)
-# Reference: https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
 FILENAME_FORMAT = "%Y%m%d_%H%M"
 
 # Polling interval in seconds to check for active Zoom meetings
 POLLING_INTERVAL = 3
+
 
 # ==============================================================================
 #                  SCREEN AND AUDIO CAPTURE CONFIGURATIONS
@@ -64,7 +87,6 @@ RECORD_MICROPHONE = False
 RECORD_TARGET = "zoom_monitor"
 
 # Window names to ignore during Zoom active call detection
-# (Prevents capturing secondary control bars, clipboards, or empty main windows)
 ZOOM_IGNORED_TITLES = {
     "zoom workplace",
     "zoom",
@@ -72,47 +94,61 @@ ZOOM_IGNORED_TITLES = {
     "chromium clipboard"
 }
 
+
 # ==============================================================================
 #                  FFMPEG COMPRESSION AND ENCODING SETTINGS
 # ==============================================================================
 
 # Output video frame rate (FPS)
-# Note: 10 FPS drastically reduces file size and is perfect for slides/text sharing
 VIDEO_FRAMERATE = 10
 
 # Audio synchronization offset in seconds
-# Positive values delay audio (use when audio starts too early relative to video)
-# Negative values delay video (use when audio starts too late relative to video)
 AUDIO_SYNC_OFFSET = 0.2
 
-
-# Constant Rate Factor (CRF) quality control
-# Recommended range: 18 (highest quality, larger files) to 28 (lower quality, smaller files)
+# Constant Rate Factor (CRF) quality control (18 to 28)
 VIDEO_CRF = 24
 
 # Video codec to use
 VIDEO_CODEC = "libx264"
 
 # Encoding speed preset
-# Options: ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
-# 'medium' is the default and provides a great balance of speed and file size
 VIDEO_PRESET = "medium"
 
 # Encoder tune profile
-# 'stillimage' optimizes H.264 compression for slides, static text, and desktop layouts
 VIDEO_TUNE = "stillimage"
 
 # Pixel format for the final output
-# 'yuv420p' ensures maximum compatibility with web browsers and mobile media players
 VIDEO_PIX_FMT = "yuv420p"
 
 # Audio codec to use for the final merge
 AUDIO_CODEC = "aac"
 
 # Audio bitrate
-# 96k provides clean voice quality while using minimal disk space
 AUDIO_BITRATE = "96k"
 
 # Audio bitrate for the standalone MP3 output file
-# 128k is standard and provides very clear voice quality
 AUDIO_MP3_BITRATE = "128k"
+
+
+# ==============================================================================
+#                  PIPELINE SETTINGS AND SAFE RESOLVER
+# ==============================================================================
+
+def get_pipeline_setting(key: str, default=None):
+    """Safely retrieves configuration from environment variable, pipeline_config, or default."""
+    env_key = f"OMNILECTURE_{key.upper()}"
+    if env_key in os.environ:
+        val = os.environ[env_key]
+        if isinstance(default, bool):
+            return val.lower() in ("true", "1", "yes")
+        if isinstance(default, int):
+            return int(val)
+        if isinstance(default, float):
+            return float(val)
+        return val
+
+    try:
+        import pipeline_config
+        return getattr(pipeline_config, key, default)
+    except (ImportError, AttributeError):
+        return default

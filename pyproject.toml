@@ -1,0 +1,134 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "omnilecture-studio"
+version = "1.0.0"
+description = "OmniLecture Studio: Automated Zoom & Screen Recording, Audio Transcription, and AI Study Notes Generator"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "OmniLecture Studio Contributors"}
+]
+keywords = [
+    "screencast",
+    "zoom",
+    "transcription",
+    "whisper",
+    "study-notes",
+    "langchain",
+    "langgraph",
+    "ocr",
+    "eir",
+    "pdf-compiler"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "Intended Audience :: Healthcare Industry",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio :: Capture/Recording",
+    "Topic :: Multimedia :: Video :: Capture",
+]
+
+# Core dependencies needed across typical runs
+dependencies = [
+    "requests>=2.28.0",
+    "numpy>=1.24.0",
+    "pydantic>=2.0.0",
+    "markdown-it-py>=3.0.0",
+    "python-docx>=1.1.0",
+    "psutil>=5.9.0",
+]
+
+[project.optional-dependencies]
+# Audio recording and DSP
+audio = [
+    "sounddevice>=0.4.6",
+    "scipy>=1.11.0",
+    "imageio-ffmpeg>=0.4.9",
+]
+
+# AI Transcription and LLM pipeline
+ai = [
+    "faster-whisper>=0.10.0",
+    "langchain>=0.1.0",
+    "langchain-openai>=0.0.2",
+    "langgraph>=0.0.15",
+]
+
+# OCR and handwritten note extraction
+ocr = [
+    "opencv-python>=4.8.0",
+    "pytesseract>=0.3.10",
+    "pillow>=10.0.0",
+    "pillow-heif>=0.15.0",
+]
+
+# Linux GNOME screen and audio capture (requires system libdbus-1-dev, libglib2.0-dev)
+linux = [
+    "PyGObject>=3.42.0",
+    "dbus-python>=1.2.18",
+]
+
+# Testing, linting and security
+dev = [
+    "pytest>=7.0.0",
+    "flake8>=7.0.0",
+    "bandit>=1.7.0",
+]
+
+# Comprehensive full installation
+all = [
+    "omnilecture-studio[audio,ai,ocr,dev]",
+]
+
+[project.scripts]
+omnilecture = "gui:main"
+omnilecture-cli = "main:main"
+omnilecture-dictation = "pipeline.dictation_service:main"
+omnilecture-compress = "scripts.compress_video:main"
+omnilecture-compiler = "pipeline.pdf_compiler.compiler:main"
+
+[tool.setuptools]
+py-modules = [
+    "config",
+    "detector",
+    "display_manager",
+    "processor",
+    "video_recorder",
+    "audio_recorder",
+    "gui",
+    "dictation_gui",
+    "main",
+    "recover",
+    "install",
+    "install_mac",
+]
+packages = [
+    "pipeline",
+    "pipeline.pdf_compiler",
+    "gui_components",
+    "scripts",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+    "ignore:.*gi\\.PyGIWarning.*",
+]
