@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import logging
 import re
 import subprocess
+import sys
 from typing import List, Optional, Tuple
 try:
     import dbus
@@ -51,9 +52,92 @@ class DisplayManager:
 
     def get_monitors(self) -> List[Monitor]:
         """Returns a list of all currently active monitors."""
+        if sys.platform == "darwin":
+            monitors = self._get_monitors_from_macos()
+            if monitors:
+                return monitors
+
         monitors = self._get_monitors_from_mutter()
         if not monitors:
             monitors = self._get_monitors_from_xrandr()
+        if not monitors and sys.platform != "darwin":
+            monitors = self._get_monitors_from_macos()
+        return monitors
+
+    def _get_monitors_from_macos(self) -> List[Monitor]:
+        """Queries monitors on macOS using CoreGraphics framework."""
+        monitors: List[Monitor] = []
+        try:
+            import ctypes
+            cg = ctypes.cdll.LoadLibrary('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics')
+            max_displays = 16
+            displays = (ctypes.c_uint32 * max_displays)()
+            count = ctypes.c_uint32()
+
+            err = cg.CGGetActiveDisplayList(max_displays, displays, ctypes.byref(count))
+            if err == 0 and count.value > 0:
+                class CGRect(ctypes.Structure):
+                    class CGPoint(ctypes.Structure):
+                        _fields_ = [('x', ctypes.c_double), ('y', ctypes.c_double)]
+                    class CGSize(ctypes.Structure):
+                        _fields_ = [('width', ctypes.c_double), ('height', ctypes.c_double)]
+                    _fields_ = [('origin', CGPoint), ('size', CGSize)]
+
+                cg.CGDisplayBounds.restype = CGRect
+                cg.CGDisplayBounds.argtypes = [ctypes.c_uint32]
+                cg.CGDisplayIsMain.restype = ctypes.c_bool
+                cg.CGDisplayIsMain.argtypes = [ctypes.c_uint32]
+
+                for i in range(count.value):
+                    d_id = displays[i]
+                    bounds = cg.CGDisplayBounds(d_id)
+                    is_main = bool(cg.CGDisplayIsMain(d_id))
+                    x = int(bounds.origin.x)
+                    y = int(bounds.origin.y)
+                    w = int(bounds.size.width)
+                    h = int(bounds.size.height)
+                    monitors.append(Monitor(
+                        name=f"Capture screen {i}",
+                        x=x,
+                        y=y,
+                        width=w,
+                        height=h,
+                        is_primary=is_main
+                    ))
+        except Exception as e:
+            logger.debug(f"Failed to query CoreGraphics on macOS: {e}")
+
+        # Fallback to system_profiler if CoreGraphics returns empty
+        if not monitors:
+            try:
+                import json
+                out = subprocess.run(
+                    ["system_profiler", "SPDisplaysDataType", "-json"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5.0
+                )
+                data = json.loads(out.stdout)
+                idx = 0
+                for card in data.get("SPDisplaysDataType", []):
+                    for disp in card.get("spdisplays_ndrvs", []):
+                        name = disp.get("_name", f"Screen {idx}")
+                        res_str = disp.get("_spdisplays_resolution", "")
+                        is_main = disp.get("spdisplays_main") == "spdisplays_yes"
+                        m = re.search(r'(\d+)\s*x\s*(\d+)', res_str)
+                        w, h = (int(m.group(1)), int(m.group(2))) if m else (1920, 1080)
+                        monitors.append(Monitor(
+                            name=f"Capture screen {idx}",
+                            x=0 if is_main else 1920 * idx,
+                            y=0,
+                            width=w,
+                            height=h,
+                            is_primary=is_main
+                        ))
+                        idx += 1
+            except Exception as e:
+                logger.debug(f"Failed to query system_profiler: {e}")
+
         return monitors
 
     def _get_monitors_from_mutter(self) -> List[Monitor]:

@@ -100,7 +100,7 @@ ZOOM_IGNORED_TITLES = {
 # ==============================================================================
 
 # Output video frame rate (FPS)
-VIDEO_FRAMERATE = 10
+VIDEO_FRAMERATE = 24 if sys.platform == "darwin" else 10
 
 # Audio synchronization offset in seconds
 AUDIO_SYNC_OFFSET = 0.2
@@ -124,7 +124,7 @@ VIDEO_PIX_FMT = "yuv420p"
 AUDIO_CODEC = "aac"
 
 # Audio bitrate
-AUDIO_BITRATE = "96k"
+AUDIO_BITRATE = "128k" if sys.platform == "darwin" else "96k"
 
 # Audio bitrate for the standalone MP3 output file
 AUDIO_MP3_BITRATE = "128k"

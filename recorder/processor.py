@@ -18,20 +18,31 @@ class MediaProcessor:
         return self.ffmpeg_path is not None
 
     def get_duration(self, file_path: str) -> float:
-        """Returns the duration of a media file in seconds using ffprobe."""
+        """Returns the duration of a media file in seconds using ffprobe or ffmpeg."""
         try:
             ffprobe_path = shutil.which("ffprobe")
-            if not ffprobe_path:
-                return 0.0
-            cmd = [
-                ffprobe_path,
-                "-v", "error",
-                "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1",
-                file_path
-            ]
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
-            return float(result.stdout.strip())
+            if ffprobe_path:
+                cmd = [
+                    ffprobe_path,
+                    "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    file_path
+                ]
+                result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+                return float(result.stdout.strip())
+            elif self.ffmpeg_path:
+                import re
+                res = subprocess.run(
+                    [self.ffmpeg_path, "-i", file_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                m = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", res.stderr or "")
+                if m:
+                    return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
+            return 0.0
         except Exception as e:
             logger.error(f"Error getting duration for {file_path}: {e}")
             return 0.0
@@ -77,9 +88,26 @@ class MediaProcessor:
         if total_duration <= 0.0:
             total_duration = 1.0 # Prevent division by zero
             
-        # Build FFmpeg command with sync offset alignment if configured
+        # Build FFmpeg command with exact hardware clock PTS alignment if available, else config fallback
         sync_offset = getattr(config, "AUDIO_SYNC_OFFSET", 0.0)
-        
+        vid_pts_path = f"{video_path}.pts"
+        aud_pts_path = f"{audio_path}.pts"
+        use_hw_pts = False
+        try:
+            if os.path.isfile(vid_pts_path) and os.path.isfile(aud_pts_path):
+                with open(vid_pts_path, "r", encoding="utf-8") as vf, open(aud_pts_path, "r", encoding="utf-8") as af:
+                    vid_pts = float(vf.read().strip())
+                    aud_pts = float(af.read().strip())
+                if vid_pts > 0.0 and aud_pts > 0.0 and abs(aud_pts - vid_pts) < 15.0:
+                    sync_offset = round(aud_pts - vid_pts, 3)
+                    use_hw_pts = True
+                    logger.info(
+                        f"Using hardware clock audio-video sync offset: {sync_offset:+.3f}s "
+                        f"(video_pts={vid_pts:.3f}, audio_pts={aud_pts:.3f})"
+                    )
+        except Exception as e:
+            logger.debug(f"Could not read hardware PTS sidecars: {e}")
+
         cmd = [
             self.ffmpeg_path,
             "-y"
@@ -98,11 +126,14 @@ class MediaProcessor:
         # Determine MP3 output path
         mp3_output_path = os.path.splitext(output_path)[0] + ".mp3"
         
+        mp4_audio_filter = ["-af", "aresample=async=1:first_pts=0"] if use_hw_pts else []
+
         cmd.extend([
             # Output 1: MP4 (Video and Audio)
             "-map", "0:v",
             "-map", "1:a",
             "-filter:v", f"fps=fps={config.VIDEO_FRAMERATE}",
+            *mp4_audio_filter,
             "-c:v", config.VIDEO_CODEC,
             "-crf", str(config.VIDEO_CRF),
             "-preset", config.VIDEO_PRESET,
@@ -115,6 +146,7 @@ class MediaProcessor:
             
             # Output 2: MP3 (Audio only)
             "-map", "1:a",
+            *mp4_audio_filter,
             "-c:a", "libmp3lame",
             "-b:a", getattr(config, "AUDIO_MP3_BITRATE", "128k"),
             mp3_output_path
@@ -127,6 +159,9 @@ class MediaProcessor:
             try:
                 os.remove(video_path)
                 os.remove(audio_path)
+                for pts_f in (vid_pts_path, aud_pts_path):
+                    if os.path.isfile(pts_f):
+                        os.remove(pts_f)
                 logger.info("Temporary recording files removed.")
             except Exception as cleanup_err:
                 logger.warning(f"Failed to remove temporary files: {cleanup_err}")

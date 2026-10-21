@@ -180,6 +180,22 @@ class ZoomRecorderGUI(Gtk.Window):
 
 
 def main():
+    if sys.platform == "darwin":
+        # On macOS, check if native GTK 3 is installed; otherwise launch native Aqua Tkinter UI
+        try:
+            if not hasattr(Gtk, "main") or "Dummy" in type(Gtk.Window()).__name__:
+                from dictation_gui import launch_dictation_gui
+                launch_dictation_gui()
+                return
+            app = ZoomRecorderGUI()
+            app.show_all()
+            Gtk.main()
+        except Exception as e:
+            logger.info(f"GTK 3 not available on macOS ({e}). Launching native desktop UI...")
+            from dictation_gui import launch_dictation_gui
+            launch_dictation_gui()
+        return
+
     app = ZoomRecorderGUI()
     app.show_all()
     Gtk.main()

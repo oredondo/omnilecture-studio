@@ -72,9 +72,9 @@ omnilecture-studio/
 ├── install.py                  # Cross-platform installer (Linux & macOS)
 │
 ├── recorder/                   # Screen, audio, and Zoom detection/processing engine
-│   ├── detector.py             # Active Zoom meeting window detector
-│   ├── display_manager.py      # Multi-monitor geometry and boundary mapper
-│   ├── video_recorder.py       # GNOME Screencast D-Bus video recorder
+│   ├── detector.py             # Active Zoom meeting window detector (Linux X11 & macOS AppleScript)
+│   ├── display_manager.py      # Multi-monitor geometry and boundary mapper (Mutter, xrandr & CoreGraphics)
+│   ├── video_recorder.py       # Multi-platform video recorder (GNOME D-Bus & macOS AVFoundation)
 │   ├── audio_recorder.py       # Modular audio engine (GStreamer & sounddevice strategies)
 │   └── processor.py            # FFmpeg audio/video merger, compressor, and duration prober
 │
@@ -128,36 +128,54 @@ omnilecture-studio/
   ```bash
   sudo apt update && sudo apt install ffmpeg tesseract-ocr tesseract-ocr-spa x11-utils python3-gi python3-dbus
   ```
-* **macOS**:
+* **macOS (Homebrew)**:
   ```bash
+  # Core dependencies (FFmpeg and OCR)
   brew install ffmpeg tesseract tesseract-lang
+
+  # Optional: System audio loopback driver (if iShowU Audio Capture is not installed)
+  brew install blackhole-2ch
   ```
 
-### 2. Python Environment & Installation
+---
+
+### 🍎 Instalación en macOS (Paso a Paso)
+
+#### Opción A: Instalador Automático (Recomendado)
+Ejecuta el instalador unificado para configurar todo automáticamente (entorno virtual `.venv`, dependencias, enlace de FFmpeg, aplicación nativa en `/Applications/OmniLecture Studio.app`, acceso directo en el Escritorio y comando CLI `dictado`):
 
 ```bash
-# Clone the repository
 git clone https://github.com/your-username/omnilecture-studio.git
 cd omnilecture-studio
+python3 install.py
+```
 
-# Create virtual environment
+Al finalizar, tendrás disponible:
+1. **Aplicación nativa en Aplicaciones**: `/Applications/OmniLecture Studio.app` (con icono Retina propio; puedes abrirla desde **Spotlight (`⌘ + Espacio`)**, **Launchpad** o arrastrarla al **Dock**).
+2. **Acceso directo en el Escritorio**: `OmniLecture Studio.command` (y alias `Dictado EIR.command`).
+3. **Comando de terminal**: `dictado` en `~/.local/bin/dictado`.
+
+#### Opción B: Instalación Manual del Entorno Python
+```bash
+# Crear y activar entorno virtual
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Unified installation via pip
+# Instalar dependencias
 pip install -r requirements.txt
 
-# Or modern editable install with all optional packages
+# O instalación editable con todos los extras
 pip install -e ".[all]"
 ```
 
-### 3. Automated System Installer
+#### 🔐 Permisos de Privacidad y Seguridad en macOS
+La primera vez que inicies **OmniLecture Studio** en macOS, el sistema te solicitará (o puedes habilitarlos en **Ajustes del Sistema $\rightarrow$ Privacidad y seguridad**) los siguientes permisos para `OmniLecture Studio.app` (o tu `Terminal` / IDE):
 
-Run the unified cross-platform installer to configure desktop launchers, application menu entries, and CLI commands:
-
-```bash
-python3 install.py
-```
+| Permiso en macOS | Propósito | Componente |
+| :--- | :--- | :--- |
+| **Grabación de pantalla** (*Screen Recording*) | Capturar el vídeo de las clases y pantallas mediante AVFoundation. | `AVFoundationVideoBackend` |
+| **Micrófono** (*Microphone*) | Grabar dictados por voz y audio de reuniones (`iShowU` / `BlackHole` / Mic). | `SoundDeviceAudioBackend` |
+| **Automatización / Accesibilidad** (*System Events*) | Detectar automáticamente cuándo se abre o cierra una reunión activa de `zoom.us`. | `MacOSZoomDetectorBackend` |
 
 ---
 
@@ -165,16 +183,17 @@ python3 install.py
 
 ### Graphical Interfaces (GUI)
 
+* **macOS (Native Aqua Studio GUI)**:
+  * Abre **OmniLecture Studio** directamente desde la carpeta **Aplicaciones (`/Applications/OmniLecture Studio.app`)**, **Spotlight** o el **Dock**.
+  * O desde terminal:
+    ```bash
+    python3 dictation_gui.py
+    ```
 * **Linux (GTK 3 GUI)**:
   ```bash
   python3 gui.py
   # Or via CLI alias:
   omnilecture
-  ```
-* **macOS (Native Dictation GUI)**:
-  ```bash
-  python3 dictation_gui.py
-  # Or double-click "Dictado EIR.command" on Desktop
   ```
 
 ### Command Line Tools (CLI)

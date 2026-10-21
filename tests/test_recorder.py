@@ -8,6 +8,8 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 import config
 from recorder import ZoomDetector, VideoRecorder, MediaProcessor
+from recorder.detector import X11ZoomDetectorBackend, MacOSZoomDetectorBackend
+from recorder.video_recorder import GnomeScreencastBackend, AVFoundationVideoBackend
 
 
 # ==============================================================================
@@ -222,3 +224,142 @@ class TestMediaProcessor:
         assert config.VIDEO_PRESET in cmd_arg
         assert "libmp3lame" in cmd_arg
         assert getattr(config, "AUDIO_MP3_BITRATE", "128k") in cmd_arg
+
+
+# ==============================================================================
+# TESTS FOR MACOS ZOOM DETECTOR BACKEND (MacOSZoomDetectorBackend)
+# ==============================================================================
+
+class TestMacOSZoomDetectorBackend:
+
+    @patch('subprocess.run')
+    def test_macos_zoom_no_windows(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.stdout = ""
+        mock_run.return_value = mock_result
+
+        backend = MacOSZoomDetectorBackend()
+        assert backend.is_meeting_active() is False
+        assert backend.get_active_meeting_window() is None
+        assert backend.get_zoom_window() is None
+
+    @patch('subprocess.run')
+    def test_macos_zoom_workplace_only(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.stdout = "Zoom Workplace:::100:::100:::800:::600\n"
+        mock_run.return_value = mock_result
+
+        backend = MacOSZoomDetectorBackend()
+        assert backend.is_meeting_active() is False
+        assert backend.get_active_meeting_window() is None
+        zoom_win = backend.get_zoom_window()
+        assert zoom_win is not None
+        assert zoom_win["title"] == "Zoom Workplace"
+        assert zoom_win["width"] == 800
+
+    @patch('subprocess.run')
+    def test_macos_zoom_meeting_active(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.stdout = "Zoom Workplace:::0:::0:::600:::400|||Reunión de Zoom:::100:::200:::1280:::720\n"
+        mock_run.return_value = mock_result
+
+        backend = MacOSZoomDetectorBackend()
+        assert backend.is_meeting_active() is True
+        meeting_win = backend.get_active_meeting_window()
+        assert meeting_win is not None
+        assert meeting_win["title"] == "Reunión de Zoom"
+        assert meeting_win["x"] == 100
+        assert meeting_win["y"] == 200
+        assert meeting_win["width"] == 1280
+        assert meeting_win["height"] == 720
+
+
+# ==============================================================================
+# TESTS FOR MACOS VIDEO BACKEND (AVFoundationVideoBackend)
+# ==============================================================================
+
+class TestMacOSVideoBackend:
+
+    @patch('subprocess.run')
+    def test_discover_screens(self, mock_run):
+        mock_result = MagicMock()
+        mock_result.stderr = (
+            "AVFoundation video devices:\n"
+            "[0] FaceTime HD Camera\n"
+            "[1] Capture screen 0\n"
+            "[2] Capture screen 1\n"
+            "AVFoundation audio devices:\n"
+            "[0] Built-in Microphone\n"
+        )
+        mock_run.return_value = mock_result
+
+        backend = AVFoundationVideoBackend(filename_template="test_mac_vid", ffmpeg_path="/usr/bin/ffmpeg")
+        screens = backend.discover_screens()
+        assert len(screens) == 2
+        assert screens[0] == {"index": 1, "name": "Capture screen 0"}
+        assert screens[1] == {"index": 2, "name": "Capture screen 1"}
+
+    @patch('subprocess.Popen')
+    def test_start_and_stop(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.stdin = MagicMock()
+        mock_process.stdin.closed = False
+        mock_process.wait.return_value = 0
+        mock_popen.return_value = mock_process
+
+        backend = AVFoundationVideoBackend(filename_template="test_mac_vid", ffmpeg_path="/usr/bin/ffmpeg")
+        with patch.object(backend, 'discover_screens', return_value=[
+            {"index": 1, "name": "Capture screen 0"},
+            {"index": 2, "name": "Capture screen 1"},
+        ]):
+            assert backend.start(draw_cursor=True, area=(0, 0, 1440, 900)) is True
+            assert backend.is_recording is True
+            assert backend.recorded_file is not None
+
+            # Verify FFmpeg command
+            cmd = mock_popen.call_args[0][0]
+            assert "/usr/bin/ffmpeg" in cmd
+            assert "-f" in cmd
+            assert "avfoundation" in cmd
+            assert "1:none" in cmd
+            assert "-vf" in cmd
+            assert "scale=trunc(iw/2)*2:trunc(ih/2)*2" in cmd
+
+            # Stop
+            out_file = backend.stop()
+            assert out_file == backend.recorded_file
+            assert backend.is_recording is False
+            mock_process.stdin.write.assert_called_with(b"q\n")
+            mock_process.wait.assert_called_once()
+
+
+# ==============================================================================
+# TESTS FOR PLATFORM AUTODETECTION (Factory / Facade)
+# ==============================================================================
+
+class TestPlatformAutoDetection:
+
+    def test_zoom_detector_autodetection_linux(self):
+        with patch('sys.platform', 'linux'):
+            detector = ZoomDetector()
+            assert isinstance(detector._backend, X11ZoomDetectorBackend)
+
+    def test_zoom_detector_autodetection_macos(self):
+        with patch('sys.platform', 'darwin'):
+            detector = ZoomDetector()
+            assert isinstance(detector._backend, MacOSZoomDetectorBackend)
+
+    @patch('dbus.SessionBus')
+    @patch('dbus.Interface')
+    def test_video_recorder_autodetection_linux(self, mock_iface, mock_bus):
+        with patch('sys.platform', 'linux'):
+            recorder = VideoRecorder(filename_template="test_linux")
+            assert isinstance(recorder._backend, GnomeScreencastBackend)
+
+    def test_video_recorder_autodetection_macos(self):
+        with patch('sys.platform', 'darwin'):
+            # When dbus is not patched as MagicMock in backend creation
+            with patch('shutil.which', return_value="/usr/bin/ffmpeg"):
+                recorder = VideoRecorder(filename_template="test_mac", backend=AVFoundationVideoBackend("test_mac", ffmpeg_path="/usr/bin/ffmpeg"))
+                assert isinstance(recorder._backend, AVFoundationVideoBackend)
+

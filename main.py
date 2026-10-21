@@ -63,8 +63,9 @@ class ZoomRecorderApp:
         logger.info("Initializing recorders...")
         
         # Temporary file templates
+        audio_ext = ".wav" if sys.platform == "darwin" else ".ogg"
         video_temp_template = f"temp_zoom_video_{int(time.time())}"
-        audio_temp_path = os.path.join(config.TEMP_DIR, f"temp_zoom_audio_{int(time.time())}.ogg")
+        audio_temp_path = os.path.join(config.TEMP_DIR, f"temp_zoom_audio_{int(time.time())}{audio_ext}")
         
         try:
             self.video_recorder = VideoRecorder(filename_template=video_temp_template)
@@ -190,8 +191,9 @@ class ZoomRecorderApp:
 
     def run(self):
         """Prompts user to select mode or parses command line arguments."""
+        os_platform = "macOS" if sys.platform == "darwin" else "Linux (Wayland/X11)"
         print("=========================================================")
-        print("     Zoom Screen & Audio Auto-Recorder (Linux Wayland)   ")
+        print(f"     Zoom Screen & Audio Auto-Recorder ({os_platform})")
         print("=========================================================")
         print(f"Output directory: {config.OUTPUT_DIR}")
         

@@ -130,3 +130,35 @@ class TestZoomDetectorGeometry:
         assert zoom_win["y"] == 40
         assert zoom_win["width"] == 1485
         assert zoom_win["height"] == 1000
+
+
+class TestMacOSDisplayManager:
+
+    def test_get_monitors_darwin(self):
+        dm = DisplayManager()
+        mock_monitors = [
+            Monitor(name="Capture screen 0", x=0, y=0, width=1440, height=900, is_primary=True),
+            Monitor(name="Capture screen 1", x=1440, y=0, width=1920, height=1080, is_primary=False),
+        ]
+        with patch('sys.platform', 'darwin'):
+            with patch.object(dm, '_get_monitors_from_macos', return_value=mock_monitors):
+                monitors = dm.get_monitors()
+                assert len(monitors) == 2
+                assert monitors[0].name == "Capture screen 0"
+                assert monitors[0].is_primary is True
+                assert monitors[1].name == "Capture screen 1"
+
+    @patch('subprocess.run')
+    def test_macos_system_profiler_fallback(self, mock_run):
+        mock_run.return_value = MagicMock(
+            stdout='{"SPDisplaysDataType": [{"spdisplays_ndrvs": [{"_name": "Color LCD", "_spdisplays_resolution": "1440 x 900", "spdisplays_main": "spdisplays_yes"}]}]}'
+        )
+        dm = DisplayManager()
+        # Mock ctypes failing to trigger system_profiler fallback
+        with patch('ctypes.cdll.LoadLibrary', side_effect=Exception("No CoreGraphics")):
+            monitors = dm._get_monitors_from_macos()
+            assert len(monitors) == 1
+            assert monitors[0].width == 1440
+            assert monitors[0].height == 900
+            assert monitors[0].is_primary is True
+

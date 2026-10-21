@@ -28,7 +28,9 @@ def recover_latest_recording():
         os.path.join(videos_dir_es, "temp_zoom_video_*.webm"),
         os.path.join(videos_dir_en, "temp_zoom_video_*.webm"),
         os.path.join(config.TEMP_DIR, "temp_zoom_video_*.webm"),
-        "temp_zoom_video_*.webm"
+        os.path.join(config.TEMP_DIR, "temp_zoom_video_*.mp4"),
+        "temp_zoom_video_*.webm",
+        "temp_zoom_video_*.mp4",
     ]
     
     video_files = []
@@ -36,13 +38,21 @@ def recover_latest_recording():
         video_files.extend(glob.glob(pattern))
         
     # Search for temp audios
-    audio_files = glob.glob(os.path.join(config.TEMP_DIR, "temp_zoom_audio_*.ogg"))
+    audio_patterns = [
+        os.path.join(config.TEMP_DIR, "temp_zoom_audio_*.ogg"),
+        os.path.join(config.TEMP_DIR, "temp_zoom_audio_*.wav"),
+        "temp_zoom_audio_*.ogg",
+        "temp_zoom_audio_*.wav",
+    ]
+    audio_files = []
+    for pattern in audio_patterns:
+        audio_files.extend(glob.glob(pattern))
     
     if not video_files:
-        print("[INFO] No temporary video files 'temp_zoom_video_*.webm' were found.")
+        print("[INFO] No temporary video files ('temp_zoom_video_*.webm' or '*.mp4') were found.")
         return
     if not audio_files:
-        print("[INFO] No temporary audio files 'temp_zoom_audio_*.ogg' were found.")
+        print("[INFO] No temporary audio files ('temp_zoom_audio_*.ogg' or '*.wav') were found.")
         return
         
     # Match video and audio pairs by timestamp/session ID
