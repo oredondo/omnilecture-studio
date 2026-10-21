@@ -22,6 +22,9 @@ class PDFRenderer:
     def _find_chrome(self) -> str | None:
         """Finds Chrome or Chromium executable on the system."""
         candidates = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+            os.path.expanduser("~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
             "/usr/bin/google-chrome",
             "/usr/bin/google-chrome-stable",
             "/usr/bin/chromium-browser",

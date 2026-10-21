@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# OmniLecture Dictation Launcher (macOS & Linux)
+PROJ_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PATH="$PROJ_DIR/.venv/bin:$PATH"
+exec "$PROJ_DIR/.venv/bin/python" "$PROJ_DIR/pipeline/dictation_service.py" "$@"

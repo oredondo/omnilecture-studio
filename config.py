@@ -1,17 +1,43 @@
 import os
+import sys
 
 # ==============================================================================
 #                      GENERAL RECORDER CONFIGURATIONS
 # ==============================================================================
 
 # Application Directories
-OUTPUT_DIR = "/home/cristina/Documentos/Zoom"
-TEMP_DIR = "/home/cristina/Documentos/grabarPantalla/.temp"
+if os.path.exists("/home/cristina/Documentos/Zoom"):
+    DEFAULT_OUTPUT_DIR = "/home/cristina/Documentos/Zoom"
+    DEFAULT_TEMP_DIR = "/home/cristina/Documentos/grabarPantalla/.temp"
+elif sys.platform == "darwin":
+    # On macOS, the standard system directory is ~/Documents (Finder displays it as "Documentos")
+    DEFAULT_OUTPUT_DIR = os.path.expanduser("~/Documents/OmniLecture")
+    DEFAULT_TEMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".temp")
+else:
+    docs_base = os.path.expanduser("~/Documentos") if os.path.exists(os.path.expanduser("~/Documentos")) else os.path.expanduser("~/Documents")
+    DEFAULT_OUTPUT_DIR = os.path.join(docs_base, "OmniLecture")
+    DEFAULT_TEMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".temp")
+
+OUTPUT_DIR = os.getenv("OMNILECTURE_OUTPUT_DIR", DEFAULT_OUTPUT_DIR)
+TEMP_DIR = os.getenv("OMNILECTURE_TEMP_DIR", DEFAULT_TEMP_DIR)
 LOG_FILE = os.path.join(OUTPUT_DIR, "zoom_recorder.log")
 
+# Prepend project's .venv/bin to PATH so tools like ffmpeg are immediately found
+_proj_root = os.path.dirname(os.path.abspath(__file__))
+_venv_bin = os.path.join(_proj_root, ".venv", "bin")
+if os.path.isdir(_venv_bin) and _venv_bin not in os.environ.get("PATH", "").split(os.pathsep):
+    os.environ["PATH"] = _venv_bin + os.pathsep + os.environ.get("PATH", "")
+
 # Ensure directories exist
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-os.makedirs(TEMP_DIR, exist_ok=True)
+try:
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.makedirs(TEMP_DIR, exist_ok=True)
+except OSError:
+    OUTPUT_DIR = os.path.join(_proj_root, "output")
+    TEMP_DIR = os.path.join(_proj_root, ".temp")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.makedirs(TEMP_DIR, exist_ok=True)
+    LOG_FILE = os.path.join(OUTPUT_DIR, "zoom_recorder.log")
 
 # Final file name timestamp format (e.g., 20260609_2225)
 # Reference: https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior

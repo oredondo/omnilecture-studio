@@ -93,6 +93,31 @@ class TestVoiceDictationNotesGenerator:
         assert recorder.resume() is True
         assert recorder.is_paused() is False
 
+    @patch('audio_recorder.HAS_GST', False)
+    @patch('audio_recorder.sd')
+    def test_audio_recorder_sounddevice_backend(self, mock_sd):
+        from audio_recorder import AudioRecorder
+        mock_stream = MagicMock()
+        mock_sd.InputStream.return_value = mock_stream
+
+        recorder = AudioRecorder("test.wav", mic_only=True)
+        assert recorder._backend == "sounddevice"
+        assert recorder.start() is True
+        assert recorder._is_recording is True
+        mock_stream.start.assert_called_once()
+
+        assert recorder.pause() is True
+        assert recorder.is_paused() is True
+
+        assert recorder.resume() is True
+        assert recorder.is_paused() is False
+
+        out = recorder.stop()
+        assert out.endswith("test.wav")
+        assert recorder._is_recording is False
+        mock_stream.stop.assert_called_once()
+        mock_stream.close.assert_called_once()
+
     @patch('pipeline.dictation_notes.VoiceDictationNotesGenerator.compress_to_ultra_light_mp3')
     @patch('pipeline.dictation_notes.VoiceDictationNotesGenerator.transcribe_audio_file')
     @patch('pipeline.dictation_notes.LLMManager')

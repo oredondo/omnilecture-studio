@@ -97,9 +97,14 @@ class HTMLGenerator:
 
         html_content = re.sub(r'<table>', table_tagger, html_content)
 
-        # 3. Style star tags (★, ★★) as highlighted badges
-        html_content = html_content.replace('★★', '<span class="star-badge double-star">★★ EIR</span>')
-        html_content = html_content.replace('★', '<span class="star-badge single-star">★ EIR</span>')
+        # 3. Style star tags (★, ★★) as highlighted badges cleanly without recursive/nested replacement
+        def star_replacer(match):
+            full = match.group(0)
+            if full.startswith('★★'):
+                return '<span class="star-badge double-star">★★ EIR</span>'
+            return '<span class="star-badge single-star">★ EIR</span>'
+
+        html_content = re.sub(r'★{1,2}(?:\s*EIR)?', star_replacer, html_content)
 
         return html_content
 
@@ -199,6 +204,8 @@ class HTMLGenerator:
 
         .content-container {{
             {column_css}
+            orphans: 2;
+            widows: 2;
         }}
 
         h1 {{
@@ -209,6 +216,8 @@ class HTMLGenerator:
             padding-bottom: 2px;
             break-after: avoid;
             page-break-after: avoid;
+            break-inside: avoid;
+            page-break-inside: avoid;
         }}
 
         h2 {{
@@ -219,6 +228,8 @@ class HTMLGenerator:
             padding-bottom: 1px;
             break-after: avoid;
             page-break-after: avoid;
+            break-inside: avoid;
+            page-break-inside: avoid;
         }}
 
         h3 {{
@@ -227,6 +238,27 @@ class HTMLGenerator:
             margin: 4px 0 1px 0;
             break-after: avoid;
             page-break-after: avoid;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }}
+
+        pre {{
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 6.5pt;
+            background-color: #f8fafc;
+            border: 0.5px solid #cbd5e1;
+            border-radius: 3px;
+            padding: 3px 6px;
+            margin: 3px 0 5px 0;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }}
+
+        code {{
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.9em;
         }}
 
         p {{
