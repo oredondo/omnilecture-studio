@@ -1,6 +1,11 @@
+from __future__ import annotations
+
 import logging
 import time
-import dbus
+try:
+    import dbus
+except ImportError:
+    dbus = None
 
 import config
 
@@ -12,6 +17,8 @@ class VideoRecorder:
 
     def __init__(self, filename_template: str = "temp_zoom_video"):
         self.filename_template = filename_template
+        if dbus is None:
+            raise RuntimeError("dbus-python is not available. GNOME Screencast is only supported on Linux GNOME.")
         self._bus = dbus.SessionBus()
         self._screencast_iface = None
         self._is_recording = False

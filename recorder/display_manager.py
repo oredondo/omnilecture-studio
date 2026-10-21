@@ -3,12 +3,17 @@ Display and monitor manager for multi-monitor setups on Linux/GNOME Wayland.
 Detects connected monitors and maps window coordinates to corresponding displays.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 import logging
 import re
 import subprocess
 from typing import List, Optional, Tuple
-import dbus
+try:
+    import dbus
+except ImportError:
+    dbus = None
 
 import config
 
@@ -37,7 +42,9 @@ class DisplayManager:
     def __init__(self, bus: Optional[dbus.SessionBus] = None):
         self._bus = bus
 
-    def _get_bus(self) -> dbus.SessionBus:
+    def _get_bus(self) -> Optional[object]:
+        if dbus is None:
+            return None
         if self._bus is None:
             self._bus = dbus.SessionBus()
         return self._bus
@@ -51,6 +58,8 @@ class DisplayManager:
 
     def _get_monitors_from_mutter(self) -> List[Monitor]:
         """Queries monitors via GNOME Mutter DisplayConfig D-Bus interface."""
+        if dbus is None:
+            return []
         monitors: List[Monitor] = []
         try:
             bus = self._get_bus()
