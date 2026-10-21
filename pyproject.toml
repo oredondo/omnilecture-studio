@@ -98,23 +98,18 @@ omnilecture-cli = "main:main"
 omnilecture-dictation = "pipeline.dictation_service:main"
 omnilecture-compress = "scripts.compress_video:main"
 omnilecture-compiler = "pipeline.pdf_compiler.compiler:main"
+omnilecture-recover = "scripts.recover:recover_latest_recording"
 
 [tool.setuptools]
 py-modules = [
     "config",
-    "detector",
-    "display_manager",
-    "processor",
-    "video_recorder",
-    "audio_recorder",
     "gui",
     "dictation_gui",
     "main",
-    "recover",
     "install",
-    "install_mac",
 ]
 packages = [
+    "recorder",
     "pipeline",
     "pipeline.pdf_compiler",
     "gui_components",

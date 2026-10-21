@@ -12,11 +12,13 @@ except ValueError:
 from gi.repository import Gtk, GLib, Pango
 
 import config
-from detector import ZoomDetector
-from display_manager import DisplayManager
-from video_recorder import VideoRecorder
-from audio_recorder import AudioRecorder
-from processor import MediaProcessor
+from recorder import (
+    ZoomDetector,
+    DisplayManager,
+    VideoRecorder,
+    AudioRecorder,
+    MediaProcessor,
+)
 
 logger = logging.getLogger("ZoomRecorderGUI.RecorderTab")
 

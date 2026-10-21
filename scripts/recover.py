@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 
 import config
-from processor import MediaProcessor
+from recorder import MediaProcessor
 
 def recover_latest_recording():
     print("=========================================================")

@@ -11,7 +11,7 @@ except ValueError:
 from gi.repository import Gtk, GLib, Pango
 
 import config
-from audio_recorder import AudioRecorder
+from recorder import AudioRecorder
 from gui_components.dialogs import DialogUtils
 
 logger = logging.getLogger("ZoomRecorderGUI.DictationTab")

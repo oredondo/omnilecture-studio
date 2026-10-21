@@ -13,7 +13,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config  # noqa: E402
-from processor import MediaProcessor  # noqa: E402
+from recorder import MediaProcessor  # noqa: E402
 
 
 def compress_video_cli(input_path: str, output_path: str = None):

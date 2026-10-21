@@ -85,9 +85,9 @@ class TestVoiceDictationNotesGenerator:
 
     @patch('gi.repository.Gst.init')
     @patch('gi.repository.Gst.parse_launch')
-    @patch('audio_recorder.AudioRecorder._discover_devices')
+    @patch('recorder.audio_recorder.AudioRecorder._discover_devices')
     def test_audio_recorder_pause_resume(self, mock_discover, mock_parse, mock_gst_init):
-        from audio_recorder import AudioRecorder
+        from recorder import AudioRecorder
         mock_pipeline = MagicMock()
         mock_parse.return_value = mock_pipeline
         mock_discover.return_value = ("mic_device", None)
@@ -101,10 +101,10 @@ class TestVoiceDictationNotesGenerator:
         assert recorder.resume() is True
         assert recorder.is_paused() is False
 
-    @patch('audio_recorder.HAS_GST', False)
-    @patch('audio_recorder.sd')
+    @patch('recorder.audio_recorder.HAS_GST', False)
+    @patch('recorder.audio_recorder.sd')
     def test_audio_recorder_sounddevice_backend(self, mock_sd):
-        from audio_recorder import AudioRecorder
+        from recorder import AudioRecorder
         mock_stream = MagicMock()
         mock_sd.InputStream.return_value = mock_stream
 

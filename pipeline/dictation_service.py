@@ -25,7 +25,7 @@ if _proj_root not in sys.path:
 
 import config
 from pipeline.dictation_notes import VoiceDictationNotesGenerator
-from audio_recorder import AudioRecorder
+from recorder import AudioRecorder
 
 logging.basicConfig(
     level=logging.INFO,

@@ -4,35 +4,42 @@ This file defines the mandatory rules and guidelines that AI coding assistants (
 
 ---
 
-## 🏗️ 1. Architectural Rules: OOP, Small Modular Files & Code Reuse (CRITICAL)
+## 🏗️ 1. Architectural Rules: Packages, OOP & Code Reuse (CRITICAL)
 
-1. **Strict Object-Oriented Programming (OOP)**:
-   * Design all components using OOP principles (classes, clear encapsulation, single responsibility, and composition).
-   * Avoid procedural monoliths or global state mutation.
+1. **Clean Package Layout**:
+   * **Root directory**: Reserved strictly for high-level application entry points (`main.py`, `gui.py`, `dictation_gui.py`, `install.py`, `config.py`), project metadata (`pyproject.toml`, `requirements.txt`), and documentation.
+   * **`recorder/`**: Screen, audio, and Zoom detection/processing engine (`ZoomDetector`, `DisplayManager`, `VideoRecorder`, `AudioRecorder`, `MediaProcessor`).
+   * **`pipeline/`**: Multimodal AI transcription, slide OCR, LangGraph orchestration, handwritten digitization, voice dictation, and `pdf_compiler/`.
+   * **`gui_components/`**: Modular GTK 3 desktop interface components.
+   * **`scripts/`**: Reusable standalone CLI tools (`compress_video.py`, `recover.py`).
+   * **`tests/`**: Complete test suite and shims (`tests/conftest.py`).
 
-2. **Small, Focused, Single-Purpose Files**:
-   * Every file MUST have a single responsibility and be strictly modular.
-   * Target keeping source files under **150 to 200 lines**.
-   * When a module grows (such as UI windows or pipeline orchestrators), refactor it immediately into sub-packages or child components (e.g., `gui_components/recorder_tab.py`, `gui_components/dialogs.py`).
+2. **Strict Object-Oriented Programming (OOP)**:
+   * Design all components using OOP principles (classes, clear encapsulation, single responsibility, strategy patterns, and composition).
+   * Decouple platform-specific logic via abstract interfaces (e.g. `BaseAudioBackend`, `BaseInstaller`).
+   * Avoid procedural monoliths, global mutable state, or miscellaneous `.py` clutter in the root folder.
 
-3. **Maximal Code Reuse**:
-   * **Never duplicate logic**: Always inspect the codebase first and reuse existing classes, methods, and utilities (e.g., `MediaProcessor`, `ZoomDetector`, `DialogUtils`, `LLMManager`, `VideoOCRExtractor`).
-   * When adding new features, build them as isolated modules that consume pre-existing services via clean OOP interfaces.
+3. **Small, Focused Files**:
+   * Keep source files small and modular (target **< 150 to 200 lines** per file).
+   * Refactor growing modules into child subpackages or modular components immediately.
+
+4. **Maximal Code Reuse**:
+   * **Never duplicate logic**: Always inspect existing classes and methods in `recorder/`, `pipeline/`, and `config.py` before adding new code.
 
 ---
 
 ## 🧪 2. Mandatory Test Execution & Test Creation (CRITICAL)
 
 1. **Always Run Full Test Suite**:
-   Whenever ANY code file is created, updated, or refactored, you MUST run the entire test suite using `pytest` inside the virtual environment:
+   Whenever ANY code file is created, updated, or refactored, you MUST run the test suite inside the virtual environment:
    ```bash
-   .venv/bin/pytest
+   .venv/bin/pytest tests/
    ```
-   Do NOT claim a task is complete until 100% of the tests pass cleanly.
+   Do NOT conclude a task until 100% of the tests pass cleanly.
 
-2. **Always Create / Update Tests**:
-   * For **every new feature, bug fix, or code modification**, you MUST write or update the corresponding unit tests in the appropriate test module (`test_recorder.py`, `test_pipeline.py`, `test_handwritten_pipeline.py`, or a new `test_*.py` file).
-   * Ensure new components, methods, edge cases, and failure modes are properly covered by mocked or real unit tests.
+2. **Mandatory Test Updates**:
+   * For **every new feature, bug fix, or code modification**, you MUST write or update unit tests in `tests/test_<feature>.py`.
+   * Ensure external hardware and services (GStreamer, D-Bus, OpenCV, Whisper, LangChain, FFmpeg) are properly mocked in tests.
 
 ---
 
@@ -41,11 +48,10 @@ This file defines the mandatory rules and guidelines that AI coding assistants (
 All Python code MUST strictly adhere to **PEP 8** coding standards:
 * **Naming Conventions**: `snake_case` for functions, methods, and variables; `CamelCase` for classes; `UPPER_CASE` for constants.
 * **Line Length**: Limit all lines to a maximum of 120 characters.
-* **Imports**: Group imports at the top of the file (Standard library -> Third-party -> Local modules). Remove unused imports (`F401`).
-* **Blank Lines**: Maintain 2 blank lines around top-level functions and classes, and 1 blank line around class methods.
+* **Imports**: Group imports at the top of the file (Standard library -> Third-party -> Local modules).
 * **Formatting Verification**: Verify PEP 8 compliance using `flake8`:
   ```bash
-  .venv/bin/flake8 . --exclude=.venv,.temp,__pycache__,pipeline/__pycache__ --max-line-length=120
+  .venv/bin/flake8 . --exclude=.venv,.temp,__pycache__,pipeline/__pycache__,recorder/__pycache__ --max-line-length=120
   ```
 
 ---
@@ -55,28 +61,27 @@ All Python code MUST strictly adhere to **PEP 8** coding standards:
 All Python code MUST pass static security analysis with **Bandit**:
 1. **Run Bandit Security Audit**:
    ```bash
-   .venv/bin/bandit -r . -x ./.venv,./.temp,./__pycache__,pipeline/__pycache__ -ll
+   .venv/bin/bandit -r . -x ./.venv,./.temp,./__pycache__,pipeline/__pycache__,recorder/__pycache__ -ll
    ```
 2. **Zero High/Medium Severity Issues**:
-   * No hardcoded passwords, tokens, or API keys outside `.gitignore`.
-   * Secure `subprocess` executions without string concatenated shell commands (`shell=True` forbidden with untrusted input).
-   * Secure temporary directory usages using `tempfile.gettempdir()`.
-   * If a legitimate false positive occurs (e.g. `0o755` permissions for Linux `.desktop` application launchers), annotate it explicitly with `# nosec <RULE_ID>` accompanied by an explanatory comment.
+   * No hardcoded tokens, passwords, or API keys. Credentials belong in `pipeline_config.py` (git-ignored) or environment variables (`OMNILECTURE_*`).
+   * Secure `subprocess` executions using argument lists without `shell=True`.
+   * Intentional permissions (such as `0o755` for `.desktop` or `.command` scripts) must be annotated with `# nosec B103`.
 
 ---
 
 ## 📖 5. Documentation Integrity
 
-Whenever you introduce a new feature, change a configuration option, edit GUI tabs, or modify pipeline parameters:
-1. **Always update the documentation** in **[README.md](file:///home/cristina/Documentos/grabarPantalla/README.md)** (for user guides, GUI tabs, CLI flags, configuration variables, installation steps, and test instructions).
+Whenever you introduce a new feature, change a configuration option, or modify pipeline parameters:
+1. **Always update the documentation** in **[README.md](README.md)** (user guides, architecture diagrams, CLI commands, and test instructions).
 2. Maintain all docstrings and logging statements intact unless directly affected by new code logic.
 
 ---
 
 ## ⚙️ 6. Centralized Configuration
 
-* Recorder settings, paths, codecs, framerates, and sync offsets live in **[config.py](file:///home/cristina/Documentos/grabarPantalla/config.py)**.
-* LLM & Pipeline credentials and limits live in **[pipeline_config.py](file:///home/cristina/Documentos/grabarPantalla/pipeline_config.py)** (and its safe template **[pipeline_config.py.example](file:///home/cristina/Documentos/grabarPantalla/pipeline_config.py.example)**).
+* General recorder paths, directories, codecs, framerates, and sync offsets live in **[config.py](config.py)**.
+* LLM & Pipeline credentials and limits live in **`pipeline_config.py`** (and its safe template **[pipeline_config.py.example](pipeline_config.py.example)**).
 
 ---
 
@@ -90,7 +95,7 @@ Whenever you introduce a new feature, change a configuration option, edit GUI ta
 
 When generating, processing, structuring, editing, or revising study notes from voice dictations or OCR:
 1. **Zero External Invention (Anti-Hallucination)**: Strictly preserve only the facts, theories, classifications, authors, and data that were dictated. Never invent clinical theories or add filler content.
-2. **Sequential Outline & Full Integration**: If the user provides an initial outline or numbered list (e.g., 1 to 9), structure the resulting document following that exact sequential order. Never fragment topics into duplicate top-level `#` titles or write notes claiming points were omitted.
-3. **Respect User Manual Modifications**: When refining an existing document, preserve and prioritize any manual corrections, author attributions, or notes made by the user. Never overwrite user-corrected content with automated guesses.
+2. **Sequential Outline & Full Integration**: If the user provides an initial outline or numbered list (e.g., 1 to 9), structure the resulting document following that exact sequential order.
+3. **Respect User Manual Modifications**: When refining an existing document, preserve and prioritize any manual corrections, author attributions, or notes made by the user.
 4. **Exhaustive Data Coverage**: Thoroughly check raw transcripts and audio for all dictated authors, study populations, statistics, mnemonic rules (e.g., F=I=S), scales, and clinical distinctions.
 5. **Formatting Rules**: Faithfully apply spoken formatting cues: CAPITAL LETTERS, priority stars (★ / ★★), callouts (`> [!IMPORTANT]`), and clean Markdown tables with blank lines before and after.

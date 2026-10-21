@@ -7,9 +7,7 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 import config
-from detector import ZoomDetector
-from video_recorder import VideoRecorder
-from processor import MediaProcessor
+from recorder import ZoomDetector, VideoRecorder, MediaProcessor
 
 
 # ==============================================================================

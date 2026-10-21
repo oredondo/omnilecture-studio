@@ -16,7 +16,7 @@ import config
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import config
-from audio_recorder import AudioRecorder
+from recorder import AudioRecorder
 from pipeline.dictation_notes import VoiceDictationNotesGenerator
 
 logger = logging.getLogger("DictationGUI")

@@ -6,11 +6,13 @@ import signal
 from datetime import datetime
 
 import config
-from detector import ZoomDetector
-from display_manager import DisplayManager
-from video_recorder import VideoRecorder
-from audio_recorder import AudioRecorder
-from processor import MediaProcessor
+from recorder import (
+    ZoomDetector,
+    DisplayManager,
+    VideoRecorder,
+    AudioRecorder,
+    MediaProcessor,
+)
 
 # Setup Logging
 logging.basicConfig(

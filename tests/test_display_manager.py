@@ -5,8 +5,7 @@ from unittest.mock import MagicMock, patch
 # Ensure the project directory is in the path
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-from detector import ZoomDetector  # noqa: E402
-from display_manager import DisplayManager, Monitor  # noqa: E402
+from recorder import ZoomDetector, DisplayManager, Monitor  # noqa: E402
 
 
 class TestDisplayManager:
