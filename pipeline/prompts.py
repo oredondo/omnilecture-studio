@@ -101,6 +101,26 @@ INSTRUCCIONES DE REVISIÓN EXIGENTES:
 Devuelve únicamente el código Markdown final en Español, sin textos de introducción ni despedida.
 """
 
+CHUNK_REFINE_PROMPT = """Eres un revisor editorial médico y docente de oposiciones EIR de élite. Se te proporciona un bloque temático de apuntes de una clase. Tu tarea es optimizar y refinar el formato y estilo de este bloque de apuntes.
+
+INSTRUCCIONES DE REVISIÓN CLÍNICA Y EDITORIAL:
+1. Elimina duplicados exactos o redundancias textuales inmediatas dentro del bloque.
+2. Corrige errores gramaticales o inconsistencias de formato (ej. listas, viñetas, notación matemática $...$).
+3. REESTRUCTURA LAS TABLAS DE MARKDOWN:
+   - Debe haber siempre al menos una línea en blanco antes y después de cada tabla de Markdown.
+   - Las tablas NO deben estar indentadas con espacios al inicio de la línea (todas sus líneas deben arrancar desde el margen izquierdo sin espacios).
+   - NUNCA pongas una tabla pegada a un elemento de viñeta de lista (como * **💡 Alertas...). Debe haber siempre una línea en blanco de separación.
+   - Asegúrate de que no queden bloques de código Mermaid en el texto; los esquemas deben ser estilo apuntes humanos (desarrollo numerado o árbol con viñetas jerárquicas).
+4. REGLA ESTRICTA DE CERO PÉRDIDA DE INFORMACIÓN:
+   - Está TERMINANTEMENTE PROHIBIDO recortar, resumir, fusionar o eliminar datos de estudio críticos, temas, clasificaciones o explicaciones.
+   - Mantén la densidad informativa, todas las alertas EIR, escalas clínicas, criterios diagnósticos y términos en negrita.
+   - Basa toda tu revisión exclusivamente en el texto provisto.
+5. Preserva intactos los términos que fueron formateados en MAYÚSCULAS y los conceptos marcados con asteriscos (★ / ★★) o alertas de importancia; no los reduzcas a minúsculas ni elimines los asteriscos de relevancia.
+
+Devuelve únicamente el código Markdown del bloque temático refinado en Español, sin textos introductorios ni de despedida.
+"""
+
+
 HANDWRITTEN_TRANSCRIPTION_PROMPT = """Eres un sistema determinista de transcripción y maquetación de apuntes manuscritos (especialmente de enfermería, medicina y oposiciones EIR).
 
 Se te proporciona el texto bruto extraído mediante OCR de una o varias páginas de apuntes manuscritos.
@@ -217,10 +237,78 @@ DIRECTRICES CRÍTICAS DE TRANSCRIPCIÓN Y MAQUETACIÓN
         • La tabla DEBE albergar TODOS los conceptos, autores, teorías y ejemplos dictados para cada categoría. ¡PROHIBIDO omitir elementos intermedios!
         • Cada autor o categoría mencionada debe tener su propia fila o punto independiente. NUNCA atribuyas ni fusiones los aportes de un autor posterior en la celda del autor anterior.
 
-   e) REGLAS MNEMOTÉCNICAS, TRUCOS ASOCIATIVOS Y CONTRASTES DOCENTES:
+   e) DIAGRAMAS DE FLUJO Y ALGORITMOS CLÍNICOS EN ASCII (AUTONOMÍA PROACTIVA Y CUANDO SE SOLICITE):
+      - **Cuándo aplicar**:
+        • Siempre que en el dictado se pida explícitamente: *"haz un diagrama de flujo"*, *"ordénalo en un esquema o diagrama de flujo"*, *"hazme un flujograma"*, *"haz un algoritmo"*.
+        • Por **autonomía proactiva**: cuando el dictado describa un proceso clínico escalonado, algoritmo de reanimación/soporte vital (neonatal, pediátrico o adulto), toma de decisiones clínicas con preguntas condicionales (ej. "¿Respira o llora?", "¿FC < 100?", "¿FC < 60?"), protocolos de estabilización o árboles de triaje.
+      - **Formato canónico en bloque de código con caracteres de caja ASCII/Unicode limpios**:
+        • Emplea esquemas nítidos con `┌───┐`, `│`, `└───┘`, flechas direccionales `▲`, `▼`, `◄`, `►` y bifurcaciones explícitas de decisión rotuladas con `[ SÍ ]` y `[ NO ]`.
+        • Ejemplo de arquitectura obligatoria:
+          ```text
+                                ┌──────────────────────────────────┐
+                                │       EVALUACIÓN INICIAL         │
+                                │ (¿Pregunta 1? ¿Pregunta 2?)      │
+                                └─────────────────┬────────────────┘
+                                                  │
+                            ┌─────────────────────┴─────────────────────┐
+                            │                                           │
+                     [ 3 Respuestas: SÍ ]                        [ Alguna: NO ]
+                            │                                           │
+                            ▼                                           ▼
+          ┌──────────────────────────────────┐        ┌──────────────────────────────────┐
+          │       CUIDADOS RUTINARIOS        │        │      ESTABILIZACIÓN EN CUNA      │
+          │ • Acción 1                       │        │ • Acción 1                       │
+          │ • Acción 2                       │        │ • Acción 2                       │
+          └──────────────────────────────────┘        └─────────────────┬────────────────┘
+                                                                        │
+                                                                        ▼
+                                                      ┌──────────────────────────────────┐
+                                                      │     ¿FC < 100 lpm o APNEA?       │
+                                                      └─────────┬───────────────┬────────┘
+                                                                │               │
+                                                      [ SÍ ]    │               │  [ NO ]
+                                                                ▼               ▼
+          ```
+      - **REGLA DE CERO PÉRDIDA DE INFORMACIÓN**:
+        • Está TERMINANTEMENTE PROHIBIDO recortar, omitir o resumir pasos del algoritmo en el diagrama de flujo. Vuelca el 100% de las preguntas iniciales, valores numéricos de corte (ej. FC < 100, FC < 60), tiempos objetivo ("Minuto de Oro", "cada 4 min"), concentraciones de oxígeno (21%, 100%), relaciones de compresión/ventilación (3:1), accesos venosos (1ª vena umbilical, 2ª intraósea) y fármacos.
+        • Complementa el diagrama de flujo con una subsección explicativa de los puntos críticos dictados.
+
+   f) LÍNEAS HORIZONTALES CRONOLÓGICAS, LÍNEAS DE VIDA Y ESCALAS NUMÉRICAS (TIMELINES EN ASCII):
+      - **Cuándo aplicar**:
+        • Cuando en el dictado se pida: *"intenta hacerme la línea horizontal"*, *"hazme una línea de tiempo"*, *"pon esto en una línea horizontal"*, *"en un eje cronológico"*.
+        • Por **autonomía proactiva**: cuando se listen etapas del desarrollo humano (concepción, periodos embrionario, fetal, perinatales, neonatales, lactante, etc.), clasificaciones por intervalos numéricos continuos (peso al nacer, edad gestacional) o trayectos fisiológicos/circulatorios (circulación fetal y sus bifurcaciones).
+      - **Formato canónico en bloque de código**:
+        • Para hitos cronológicos o evolutivos:
+          ```text
+          [ Concepción ] ──► [ Sem. 3-8 (Pico Teratogénico) ] ──► [ Periodo Fetal ] ──► [ Perinatal 1 y 2 ] ──► [ Neonatal Precoz/Tardío ] ...
+          ```
+        • Para escalas numéricas e intervalos de clasificación (ej. pesos al nacer o edades gestacionales):
+          ```text
+          < 1.000 g           < 1.500 g           < 2.500 g           2.500 - 3.999 g       ≥ 4.000 g
+          ├───────────────────┼───────────────────┼───────────────────┼─────────────────────┤
+          Extremadamente B.   Muy Bajo Peso       Bajo Peso           Peso Normal           Macrosómico
+          ```
+        • Para flujos anatómicos o vasculares (ej. circuito fetal):
+          ```text
+          Placenta ──(Vena Umbilical 80% O2)──► Ombligo/Uraco ──► Vena Porta vs Conducto Venoso Arancio ──► VCI ...
+          ```
+      - Vuelca todos los rangos temporales (días, semanas, meses, años), límites en gramos y advertencias dictadas.
+
+   g) TABLAS ESPECÍFICAS Y DESGLOSADAS PARA TESTS DE VALORACIÓN Y ESCALAS CLÍNICAS (APGAR, GLASGOW, ETC.):
+      - **Cuándo aplicar**:
+        • Cuando se pida: *"en el test de apgar hazme una tabla adicional con los valores y parámetros"*, *"tabla de puntuaciones de la escala"*, o cuando el dictado desarrolle escalas y tests con puntuaciones numéricas discretas (APGAR, Glasgow, etc.).
+      - **Estructura obligatoria en 3 bloques complementarios**:
+        1) **Tabla de Desglose de Parámetros y Valores (0, 1, 2...)**:
+           Matriz con columnas: `Letra/Sigla | Parámetro Clínico | 0 Puntos | 1 Punto | 2 Puntos` con cada criterio clínico dictado con precisión.
+        2) **Tabla de Interpretación de la Puntuación Total**:
+           Rangos de puntuación total con su clasificación clínica y significado dictado (ej. 0-3 Deprimido, 4-6 Moderadamente deprimido, 7-10 Satisfactorio).
+        3) **Normas Mandatorias de Aplicación**:
+           Momentos de evaluación (ej. Minuto 1 = tolerancia AL PARTO; Minuto 5 = capacidad de ADAPTACIÓN EXTRAUTERINA), frecuencia de repetición si puntuación baja, y REGLAS DE ORO dictadas (ej. "NO se utiliza para iniciar la reanimación", "Medida OBJETIVA", "Evalúa EFECTIVIDAD DE LA REANIMACIÓN").
+
+   h) REGLAS MNEMOTÉCNICAS, TRUCOS ASOCIATIVOS Y CONTRASTES DOCENTES:
       - Si el dictador menciona asociaciones mnemotécnicas (ej. 'P de Primer año, P de Piaget', 'GAUS = desuso', 'comunicativa es lo mismo que de significado') o contrastes conceptuales directos (ej. 'Inteligencia Emocional vs. Inteligencia Académica', 'olvido por interferencia en la codificación vs. interferencia en la recuperación'), CONSERVA SIEMPRE dicha regla o matiz en los apuntes (entre paréntesis o en cursiva/destacado). Son herramientas mnemotécnicas indispensables para la preparación del EIR.
 
-   f) DELETREO FONÉTICO INTELIGENTE (RECONSTRUCCIÓN EXACTA Y ELIMINACIÓN DEL DELETREO LITERAL):
+   i) DELETREO FONÉTICO INTELIGENTE (RECONSTRUCCIÓN EXACTA Y ELIMINACIÓN DEL DELETREO LITERAL):
       - **Cómo funciona el deletreo en el dictado**: Cuando aparece un apellido extranjero, término técnico o sigla en inglés, el hablante suele pronunciarlo primero y acto seguido deletrearlo letra por letra en español para asegurarse de que lo escribas bien.
       - **EL DELETREO CORRIGE A LA TRANSCRIPCIÓN FONÉTICA DE WHISPER**:
         Cuando en el texto bruto aparezca una palabra seguida de su deletreo (ej. `Kaplan. C-A-P-L-A-N`, `Lehmann. L-E-Y-M-A-N`, `Pepló. P-E-P-L-A-U`, `Sarenting. S-A-R-E-N-T-I-N-G`, `Bookman. B-U-C-K-M-A`), la primera palabra escrita por Whisper (`Kaplan` con K, `Lehmann` con h, `Pepló`, `Bookman`) es un error fonético del reconocedor de voz y el deletreo te indica la grafía real (**`Caplan`** con C, **`Leymann`** con Y, **`Peplau`**, **`Sharenting`**, **`Buckman`**). ¡Usa SIEMPRE las letras del deletreo + el contexto clínico para corregir la palabra equivocada de Whisper!
@@ -402,16 +490,85 @@ DIRECTRICES CRÍTICAS DE TRANSCRIPCIÓN Y MAQUETACIÓN
      - Evaluación económica: ACB (Coste-Beneficio en €), ACE (Coste-Efectividad en unidades clínicas), ACU (Coste-Utilidad en AVAC / QALY), AMC (Minimización de costes).
      - Rendimiento: Eficacia (óptimas/ensayo), Efectividad (práctica real), Eficiencia (coste-beneficio), Productividad (cantidad/recursos).
 
+   • Pediatría, Neonatología, Transición y Cuidados en Paritorio (EIR):
+     - Ambiente del Paritorio:
+       • Temperatura ambiental estricta: entre **23 y 25 °C**.
+     - Asistencia a la Transición y Reanimación Neonatal Inmediata:
+       • **Las 3 Preguntas de Evaluación Inicial Inmediata**: 1) ¿Gestación ≥ 34 semanas? (los pretérminos tardíos de 34 a 36+6 semanas con buen tono y respiración se manejan como recién nacidos a término), 2) ¿Respira o llora?, 3) ¿Buen tono muscular?
+       • **Rama SÍ (3 respuestas afirmativas)**: Cuidados rutinarios, pinzamiento tardío del cordón (≥ 60 segundos), cubrir con manta (mantener temperatura) y contacto piel con piel inmediato con la madre.
+       • **Rama NO (alguna respuesta negativa)**: Pasar de inmediato a **cuna térmica** (área cálida, bien iluminada, sin corrientes de aire, superficie plana y calentadores radiantes precalentados).
+       • **Estabilización inicial en cuna térmica (4 acciones)**: 1) Calentar y mantener temperatura corporal normal, 2) Posición neutra o de olfateo, 3) Despejar o limpiar vía aérea **SOLO si las secreciones obstruyen** (siempre **primero boca y segundo nariz**; el neonato es respirador nasal preferente), 4) Secar y estimular suavemente.
+       • **Reevaluación de Frecuencia Cardíaca (FC) y Respiración**:
+         - Si apnea o FC < 100 lpm: Iniciar **Ventilación con Presión Positiva Intermitente (VPPI)** en el **Minuto de Oro** (primer minuto de vida).
+         - Monitorización ECG y pulsioximetría **PRE-DUCTAL en mano derecha**.
+         - Concentración de Oxígeno inicial: aire ambiente (21% de FiO2) en recién nacidos a término; 21-30% en prematuros de 32 a 34 semanas.
+         - Curva de objetivos de SatO2 preductal: **3 minutos: 70-80%**, **5 minutos: 80-90%**, **10 minutos: 90-95%**.
+         - Si dificultad respiratoria persistente pero con FC ≥ 100 lpm: Valorar **CPAP** y monitorizar saturación.
+       • **Escalada de Reanimación Avanzada**:
+         - Si FC < 100 lpm persistente: Maniobras de ventilación correctivas, optimizar mascarilla o considerar intubación traqueal o mascarilla laríngea.
+         - Si FC < 60 lpm tras ventilación adecuada: Iniciar **Compresiones Torácicas (masaje cardíaco)** coordinadas con VPPI en **relación 3:1** (3 compresiones : 1 ventilación) y administrar **Oxígeno al 100%**.
+         - Vías de acceso vascular: 1ª opción **vena umbilical** (canalización de vena umbilical en ombligo), 2ª opción **vía intraósea**.
+         - Farmacología (Guías ERC 2025): **Adrenalina cada 4 minutos**. Expansión de volumen con suero salino fisiológico si persiste bradicardia o sospecha de hipovolemia.
+       • **Pinzamiento de Cordón y Contraindicación de Ordeño**:
+         - Pinzamiento tardío: retrasar **≥ 60 segundos** o hasta cese de latido (1 a 3 minutos). Reduce riesgo de muerte en prematuros y mejora dotación de hierro.
+         - Dispositivos de pinzamiento: Pinza clásica, clips cauterizantes, **BARR** o **UMBILICAL CORD-CLAMP**.
+         - Distancia de ligadura: a 2 cm de la base abdominal.
+         - **CONTRAINDICACIÓN ESTRICTA**: El ordeño (*milking*) del cordón umbilical está **TERMINANTEMENTE CONTRAINDICADO en recién nacidos menores de 28 semanas de gestación**.
+     - Cuidados en la Sala de Posparto y Atención Neonatal:
+       • **Identificación**: Pulsera en tobillo del recién nacido y huellas dactilares/plantares de madre e hijo.
+       • **Profilaxis de Enfermedad Hemorrágica Neonatal (Vitamina K / Filoquinona o Fitomenadiona)**:
+         - Causas: lactancia materna exclusiva sin profilaxis (flora intestinal inmadura, sin síntesis adecuada). Formas clásica (1º-3º día) y tardía (2 a 12 semanas).
+         - Vía Intramuscular (Más eficaz): inyección en el **vasto externo del muslo**. Dosis de **1 mg** en peso normal; **0,5 mg** en RNMBP (< 1.500 g).
+         - Vía Oral (Segunda opción): 3 dosis de **2 mg** (al nacer, al 4º-6º día, y a la 4ª-6ª semana; esta 3ª dosis se puede omitir si toma exclusivamente fórmula).
+       • **Profilaxis de Oftalmía Neonatal (Profilaxis de Credé)**:
+         - Agentes: Neisseria gonorrhoeae y Chlamydia trachomatis.
+         - Pauta: Colirio o pomada de **Eritromicina al 0,5%** o **Tetraciclina al 1%**, envase monodosis, **no retirar el exceso**. Puede demorarse hasta finalizar el contacto piel con piel (50-120 min). Desaconsejado nitrato de plata y povidona yodada.
+       • **Prevención de Hipotermia y Termorregulación**:
+         - Pérdidas: Radiación (60%), Evaporación (25%), Convección (11%), Conducción (3%).
+         - Termogénesis: Vasoconstricción, postura en flexión y combustión de **grasa parda** (sin temblor), localizada en: **interescapular, axilar, perirrenal y mediastino**.
+         - Rango de temperatura: 35,5 a 37,5 °C (mantenimiento 36,5 - 37,5 °C).
+         - Servocontrol en incubadoras: Sensor cutáneo en **cuadrante superior derecho del abdomen** (NUNCA sobre depósitos de grasa parda para evitar lecturas erróneas).
+       • **Contacto Piel con Piel (Bonding)**: Precoz e ininterrumpido. Decúbito prono sobre tórax materno. Mínimo **50 minutos** hasta **120 minutos**. Secar cabeza y espalda (**NUNCA las manos**).
+       • **Periodos de Reactividad y Lactancia**:
+         - 1º Periodo de reactividad (15 a 30 min): simpático, taquipnea, taquicardia, búsqueda y succión vigorosa.
+         - Periodo de reposo o sueño (hasta 4 horas): parasimpático, disminución de frecuencias, inicio de motilidad.
+         - 2º Periodo de reactividad (2ª a 6ª hora): emisión de meconio, reactividad moderada.
+         - Lactancia: no hay tiempo máximo fijado; apoyo temprano interfiriendo lo mínimo.
+       • **Permeabilidad y Exploración**: Confirmación visual de ano y espera de expulsión meconial. Comprobar coanas. NO sondaje rectal ni lavado gástrico sistemático.
+       • **Hipoglucemias Neonatales**: Glucemia en sangre arterial o capilar **< 45 mg/dL**. Cribado capilar a las **0, 1, 2, 4, 6, 12 y 24 horas de vida**. Primera opción de suplementación si precisa: **leche materna extraída**.
+     - Test de APGAR (Heteroadministrado, 5 parámetros, 0 a 2 puntos):
+       • Parámetros: **A**ctividad (tono muscular: débil=0, ligera flexión=1, activo=2), **P**ulso (FC: ausente=0, <100=1, ≥100=2), **G**esto/Mueca (reflejos: sin respuesta=0, mueca=1, estornudo/tos=2), **A**specto (color: azul/pálido=0, acrocianosis=1, sonrosado=2), **R**espiración (esfuerzo: ausente=0, lento/irregular=1, llanto enérgico=2).
+       • Interpretación: 0 a 3 (Deprimido / Dificultad grave de adaptación), 4 a 6 (Moderadamente deprimido), 7 a 10 (Satisfactorio).
+       • Minuto 1 evalúa la tolerancia **AL PARTO**; Minuto 5 evalúa la capacidad de **ADAPTACIÓN EXTRAUTERINA**. Si < 7 repetir cada 5 minutos.
+       • **REGLAS DE ORO**: **NO SE UTILIZA PARA INICIAR LA REANIMACIÓN**, es una **MEDIDA OBJETIVA** y evalúa la **EFECTIVIDAD DE LA REANIMACIÓN**.
+     - Fisiología y Anatomía de la Circulación Fetal y Transiciones:
+       • Circuito fetal: Placenta -> Vena Umbilical (sangre oxigenada al 80%) -> Ombligo y Uraco -> Vena Porta vs Conducto Venoso de Arancio -> VCI -> Aurícula Derecha -> 1/3 pasa por Foramen Oval a Aurícula Izquierda / Ventrículo Izquierdo / Aorta (cerebro y miocardio) y 2/3 pasa a Ventrículo Derecho / Arteria Pulmonar (8% a pulmones y 92% por Ductus Arterioso de Botal a Aorta descendente) -> Arterias Umbilicales -> Placenta.
+       • Transformación tras el nacimiento:
+         - Foramen oval -> Fosa oval
+         - Ductus / Conducto arterioso -> Ligamento arterioso
+         - Ductus / Conducto venoso de Arancio -> Ligamento venoso
+         - Vena umbilical -> Ligamento redondo del hígado
+         - Arterias umbilicales -> Ligamentos umbilicales mediales (o arterias vesicales superiores / cordones fibrosos)
+     - Cronología del Desarrollo Humano y Clasificaciones:
+       • Periodos: Concepción -> Embrionario (semanas 3 a 8: pico teratogénico de máxima susceptibilidad) -> Fetal -> Perinatal 1 (semana 28 de gestación al 7º día posparto) y Perinatal 2 (semana 22 de gestación al 28º día posparto) -> Neonatal precoz (< 7 días) y tardío (7 a 28 días) -> Lactante (1 mes a 12 meses o 2 años) -> Preescolar (1 a 3 años) -> Escolar (3 a 6 o 6 a 12 años) -> Adolescencia (12 a 18 años) -> Juventud.
+       • Clasificación por Peso al Nacer: Extremadamente bajo peso (< 1.000 g), Muy bajo peso (< 1.500 g), Bajo peso al nacer (< 2.500 g), Normopeso (2.500 a 3.999 g), Macrosómico (≥ 4.000 g).
+       • Clasificación por Edad Gestacional: Prematuro extremo (< 28 semanas), Muy prematuro (28 a 31+6 semanas), Prematuro moderado (32 a 33+6 semanas), Pretérmino tardío (34 a 36+6 semanas), A término (37 a 41+6 semanas), Postérmino (≥ 42 semanas).
+       • Escalas de Madurez Gestacional: Usher (5 parámetros somáticos), Ballard (12 parámetros: 6 físicos y 6 neuromusculares), Dubowitz (21 parámetros), Capurro (7 parámetros: 5 somáticos y 2 neurológicos).
+
 5. ESTRUCTURA Y FORMATO:
    • `# Título Principal del Tema`
    • `## Esquema General de Contenidos` (Obligatorio al principio del documento: esquema clásico y simple por puntos numerados `1.`, `2.` y subpuntos indentados `   - ` debajo de cada punto; sin paréntesis en línea ni Mermaid).
    • `## Secciones Principales` y `### Subapartados` siguiendo el orden del esquema.
    • Viñetas estructuradas con negrita (`- **Concepto**: Explicación clara`).
+   • Diagramas de flujo y algoritmos clínicos en cajas ASCII/Unicode limpias (`┌─┐`, `│`, `▼`, bifurcaciones `[ SÍ ]` y `[ NO ]`) cuando se describan procedimientos diagnósticos, de transición o de reanimación/soporte vital, conteniendo el 100% de los datos dictados.
+   • Líneas horizontales cronológicas y escalas numéricas (`──►`, `|-----|`) en bloques de código para etapas evolutivas, intervalos de peso, edad gestacional o circuitos biológicos.
    • Fórmulas matemáticas en bloque (`$$...$$`) o inline (`$...$`).
    • Tablas Markdown modulares y comparativas cuando el dictado lo pida (revisando críticamente si aplica a lo anterior o a lo posterior) o por autonomía proactiva (para ahorrar espacio, dar consistencia y facilitar el estudio), con columnas bien diferenciadas (`Tipo/Categoría | Definición | Características, Manifestaciones y Criterios`), interior de columnas con **puntos (`• `) y subpuntos (`- `)** separados por `<br>`, línea en blanco antes y después de cada tabla, y **SIN REPETIR JAMÁS el texto de la tabla fuera de ella**.
+   • Tablas específicas y desglosadas para escalas y tests de valoración (ej. Test de APGAR: desglose de parámetros 0, 1, 2, interpretación de puntuación total y normas mandatorias).
    • Respeto riguroso de **MAYÚSCULAS** en los términos que el usuario indicó poner en mayúsculas.
    • Inclusión visible de marcas de asteriscos (`★` / `★★`) en los conceptos clave señalados con asteriscos.
    • Nombres de autores, términos y siglas reconstruidos sin incluir el deletreo literal (`A-B-C`) en los apuntes.
+   • **FIDELIDAD ESTRICTA Y CERO INVENCIÓN EXTERNA**: Queda terminantemente prohibido inventar conceptos, teorías, clasificaciones o datos que no hayan sido dictados.
    • Redacción 100% en ESPAÑOL formal, riguroso y académico.
 
 Devuelve ÚNICAMENTE el código Markdown final en Español."""
